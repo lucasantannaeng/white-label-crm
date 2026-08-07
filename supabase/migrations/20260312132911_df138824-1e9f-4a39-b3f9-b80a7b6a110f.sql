@@ -1,0 +1,1 @@
+ALTER TABLE public.agendamentos ADD COLUMN IF NOT EXISTS prioridade TEXT NOT NULL DEFAULT 'Normal';

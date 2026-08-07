@@ -1,0 +1,16 @@
+project_id = "qepfowhccyuccuodjdky"
+
+[functions.ai-weather-alert]
+verify_jwt = false
+
+[functions.ai-route-optimizer]
+verify_jwt = false
+
+[functions.ai-voice-assistant]
+verify_jwt = false
+
+[functions.ai-image-analysis]
+verify_jwt = false
+
+[functions.export-backup]
+verify_jwt = true

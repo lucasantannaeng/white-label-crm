@@ -1,0 +1,1 @@
+ALTER TABLE public.agendamentos ADD COLUMN valor_servico numeric DEFAULT 0;

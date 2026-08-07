@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 95%;
+    --secondary-foreground: 220 20% 20%;
+
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 25 90% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 25 95% 53%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 220 20% 10%;
+    --sidebar-foreground: 210 15% 85%;
+    --sidebar-primary: 25 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 16%;
+    --sidebar-accent-foreground: 210 15% 85%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 25 95% 53%;
+
+    --solar-orange: 25 95% 53%;
+    --solar-amber: 38 92% 50%;
+    --solar-yellow: 45 93% 47%;
+    --solar-success: 142 71% 45%;
+    --solar-info: 199 89% 48%;
+
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 220 20% 7%;
+    --foreground: 210 15% 93%;
+    --card: 220 18% 11%;
+    --card-foreground: 210 15% 93%;
+    --popover: 220 18% 11%;
+    --popover-foreground: 210 15% 93%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 16%;
+    --secondary-foreground: 210 15% 85%;
+    --muted: 220 12% 18%;
+    --muted-foreground: 215 12% 55%;
+    --accent: 25 90% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 12% 20%;
+    --input: 220 12% 20%;
+    --ring: 25 95% 53%;
+    --sidebar-background: 220 20% 5%;
+    --sidebar-foreground: 210 15% 85%;
+    --sidebar-primary: 25 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 12%;
+    --sidebar-accent-foreground: 210 15% 85%;
+    --sidebar-border: 220 15% 14%;
+    --sidebar-ring: 25 95% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .solar-gradient {
+    background: linear-gradient(135deg, hsl(var(--solar-orange)), hsl(var(--solar-amber)), hsl(var(--solar-yellow)));
+  }
+
+  .solar-gradient-text {
+    background: linear-gradient(135deg, hsl(var(--solar-orange)), hsl(var(--solar-amber)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm;
+  }
+
+  .kpi-card {
+    @apply bg-card rounded-xl border border-border/50 p-6 shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  /* Mobile card view for tables */
+  .mobile-card {
+    @apply glass-card rounded-xl p-4 space-y-2;
+  }
+
+  .mobile-card-row {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  .mobile-card-label {
+    @apply text-xs text-muted-foreground shrink-0;
+  }
+
+  .mobile-card-value {
+    @apply text-sm text-foreground font-medium text-right;
+  }
+}
+
+/* PWA safe area insets */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Touch-friendly targets */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  select, input {
+    min-height: 44px;
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Scrollbar styling for mobile */
+@media (max-width: 768px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+}

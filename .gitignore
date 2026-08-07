@@ -1,0 +1,38 @@
+# Environment variables & secrets (CRITICAL DEVSECOPS BLOCK)
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build outputs & caches
+dist/
+dist-ssr/
+build/
+.output/
+.vite/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.user
+
+# Temporary / Lovable artifacts
+.lovable/
