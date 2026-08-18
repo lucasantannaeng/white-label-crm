@@ -40,3 +40,6 @@ lerna-debug.log*
 graphify-out/
 .agents/
 
+
+.lovable/
+
