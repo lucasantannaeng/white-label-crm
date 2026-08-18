@@ -1,119 +1,129 @@
-# 💼 White Label CRM — Sistema Multi-Tenant de Gestão de Clientes e Serviços Técnicos
+# 💼 Solar Service — Multi-Tenant White-Label CRM & Field Operations
 
-[![React](https://img.shields.io/badge/React-18.3-blue.svg?logo=react)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg?logo=typescript)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.4-purple.svg?logo=vite)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC.svg?logo=tailwind-css)](https://tailwindcss.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Edge%20Functions-green.svg?logo=supabase)](https://supabase.com/)
-[![DevSecOps](https://img.shields.io/badge/DevSecOps-Audited%20%26%20Sanitized-brightgreen.svg)]()
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Edge%20Functions%20%26%20RLS-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Vitest](https://img.shields.io/badge/Vitest-25%20Passed-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**White Label CRM** é uma plataforma CRM completa e customizável (White Label) desenvolvida para empresas de serviços técnicos, energia solar e engenharia de campo. O sistema oferece gestão unificada de leads, clientes, contratos, agendamentos, rotas operacionais, comissões de vendas, assinaturas digitais e automações inteligentes alimentadas por Edge Functions com IA.
-
----
-
-## 🚀 Principais Funcionalidades
-
-- 👥 **Gestão Completa de Clientes & Oportunidades**: Pipeline de atendimento, cadastro detalhado de clientes, histórico de serviços e documentos.
-- 📄 **Contratos & Assinaturas Digitais**: Emissão de contratos operacionais e coleta de assinatura digital em campo (`SignaturePad`).
-- 📅 **Agenda Operacional com Detecção de Conflitos**: Agendamento de vistorias e instalações com algoritmo automático de prevenção de choque de horários (`AgendaConflictDialog`).
-- 🚗 **Otimizador de Rotas & Equipes de Campo**:
-  - Organização de rotas diárias de serviços por proximidade geográfica.
-  - Alertas meteorológicos automatizados em tempo real (`WeatherPopup` / `ai-weather-alert`).
-  - Vistoria técnica padronizada via checklists dinâmicos (`ChecklistVT`).
-- 🤖 **Recursos Avançados de Inteligência Artificial (Edge Functions)**:
-  - **Análise de Imagens (`ai-image-analysis`)**: Leitura automatizada de placas fotovoltaicas e equipamentos por visão computacional.
-  - **Otimizador de Rotas (`ai-route-optimizer`)**: Designação inteligente de equipes usando LLMs.
-  - **Assistente de Voz (`ai-voice-assistant`)**: Comandos e registro de ocorrências operacionais por áudio.
-- 💵 **Gestão Financeira & Comissões**: Cálculo automático de comissões por faixa de vendas e presets de preços configuráveis.
-- ⚙️ **Personalização White Label**: Suporte a temas, logotipos e ativação modular de funcionalidades por tenant/empresa (`SetupWizard` & `GerenciarPresetsModulos`).
+> **Enterprise Multi-Tenant White-Label CRM, Sales Pipeline, and Field Service Operations Platform for Solar PV and Technical Service Integrators.**
 
 ---
 
-## 🛠️ Stack Tecnológica
+## 🌟 Overview
 
-### **Frontend & Interface**
-- **Core:** React 18 + TypeScript
-- **Bundler:** Vite
-- **Estilização:** Tailwind CSS + Radix UI (shadcn/ui) + Lucide Icons
-- **Assinatura & Formulários:** Signature Pad + React Hook Form + Zod
-
-### **Backend & Serverless Edge Functions**
-- **Banco de Dados & Autenticação:** Supabase PostgreSQL com Row Level Security (RLS)
-- **Supabase Edge Functions (Deno / TypeScript):**
-  - `ai-image-analysis`: Visão computacional com Gemini Vision.
-  - `ai-route-optimizer`: Algoritmos de roteamento e designação de equipes.
-  - `ai-weather-alert`: Integração meteorológica Open-Meteo + Gemini.
-  - `manage-users`: Administração de usuários e controle RBAC.
-  - `export-backup`: Exportação segura de dados corporativos.
-  - `send-push-notification`: Notificações push em tempo real.
+**Solar Service White-Label CRM** is a multi-tenant platform architected for solar energy contractors, field engineering teams, and technical service providers. It unifies lead capture, commercial proposal generation, dynamic contract signing (`.docx`/`.pdf`), schedule conflict management, route optimization, sales commission tracking, and AI-assisted edge functions.
 
 ---
 
-## ⚙️ Configuração de Variáveis de Ambiente (`.env`)
+## 🚀 Key Features
 
-Crie um arquivo `.env` na raiz do projeto com base no modelo fornecido no `.env.example`:
+* 👥 **Omnichannel Customer & Opportunity Pipeline**:
+  * Visual Kanban board with stage transition tracking, status badges, and service history.
+  * **ClienteDrawer360**: 360-degree customer timeline aggregating contracts, maintenance visits, technical inspection records, and invoices.
+* 🧮 **Commercial Pricing Engine (`CalculadoraPage.tsx`)**:
+  * Dynamic pricing calculator with tiered volume discounts, payback simulation, and strict mathematical discount clamping (`Math.max/Math.min`).
+* 📄 **Automated Contract Generation & Digital Signatures (`contractUtils.ts`)**:
+  * Automated `.docx` and `.pdf` contract generation from dynamic templates with built-in **Zip Slip / Path Traversal protection**.
+  * Integrated HTML5 canvas digital signature capture (`SignaturePad`).
+* 📅 **Conflict-Aware Scheduling & Route Management**:
+  * Service agenda with automated time-slot collision detection (`AgendaConflictDialog`).
+  * Field team assignment and geographic route optimization.
+  * Real-time weather alerts and precipitation risk notifications (`WeatherPopup`).
+* 🤖 **AI-Powered Edge Functions (Deno / Supabase)**:
+  * `ai-image-analysis`: Computer vision inspection of solar panel cleanings and inverter nameplates.
+  * `ai-route-optimizer`: LLM-driven field team routing and scheduling.
+  * `ai-voice-assistant`: Voice command processing and field audio notes.
+  * `ai-weather-alert`: Automated meteorological risk forecasting.
+* 🏢 **True White-Label Architecture**:
+  * Dynamic brand customization (Logos, primary/secondary color palettes, custom domains, and modular feature flags).
+  * Role-Based Access Control (RBAC) with Master Admin, Manager, Technician, and Sales Representative roles.
 
-```env
-# Supabase Configuration
-VITE_SUPABASE_PROJECT_ID="seu_project_id_aqui"
-VITE_SUPABASE_PUBLISHABLE_KEY="sua_chave_publica_anonima_aqui"
-VITE_SUPABASE_URL="https://seu_project_id.supabase.co"
+---
+
+## 🏗️ Architecture
+
+```
+WhiteLableCRM/
+├── src/
+│   ├── components/crm/
+│   │   ├── DashboardPage.tsx       # KPI overview & analytics
+│   │   ├── ClientesPage.tsx        # Customer directory & Kanban board
+│   │   ├── CalculadoraPage.tsx     # Proposal generator with discount guard
+│   │   ├── ContratosPage.tsx       # Contract management & DOCX generator
+│   │   ├── ClienteDrawer360.tsx    # 360-degree client timeline
+│   │   ├── AgendaPage.tsx          # Service calendar with conflict prevention
+│   │   └── SignaturePad.tsx        # Digital signature canvas
+│   ├── lib/
+│   │   ├── contractUtils.ts        # Hardened DOCX generator (Zip Slip protected)
+│   │   └── formatters.ts           # Currency, date, and text formatters
+│   ├── hooks/
+│   │   ├── useAuth.ts              # RBAC & authentication state
+│   │   └── useRouteOptimizer.ts    # Route optimization triggers
+│   └── test/                       # 25 Vitest tests (Dogfood, Integration, Unit)
+├── supabase/
+│   ├── functions/                  # AI Edge Functions (Deno / TypeScript)
+│   └── migrations/                 # PostgreSQL multi-tenant RLS schema & RBAC
+├── package.json
+└── vite.config.ts
 ```
 
-> 🛡️ **DevSecOps Note:** O arquivo `.env` contendo credenciais reais está estritamente ignorado no `.gitignore` e não exposto no versionamento.
+---
+
+## 🛠️ Tech Stack
+
+| Domain | Technologies |
+| :--- | :--- |
+| **Frontend** | React 18, TypeScript 5.8, Tailwind CSS, Shadcn UI / Radix |
+| **Document Processing** | Docxtemplater, PizZip, jsPDF, FileSaver |
+| **Backend / Cloud** | Supabase (PostgreSQL 15), Supabase Auth, Deno Edge Functions |
+| **Testing** | Vitest (25 test suites passing) |
 
 ---
 
-## 💻 Guia de Execução Local
+## ⚡ Getting Started
 
-### Pré-requisitos
-- **Node.js** v18+
-- Gerenciador de pacotes: **npm** ou **bun**
+### 1. Prerequisites
+* Node.js `>= 18.0.0`
+* npm or pnpm
 
-### Passo a Passo
+### 2. Installation
 
-1. **Clonar o Repositório:**
-   ```bash
-   git clone https://github.com/lucasantannaeng/white-label-crm.git
-   cd white-label-crm
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/lucasantannaeng/white-label-crm.git
+cd white-label-crm
 
-2. **Instalar Dependências:**
-   ```bash
-   npm install
-   # ou
-   bun install
-   ```
+# Install dependencies
+npm install
 
-3. **Configurar as Variáveis de Ambiente:**
-   ```bash
-   cp .env.example .env
-   # Edite o arquivo .env preenchendo as variáveis correspondentes ao Supabase
-   ```
+# Setup environment configuration
+cp .env.example .env
+```
 
-4. **Executar a Aplicação:**
-   ```bash
-   npm run dev
-   # ou
-   bun dev
-   ```
-   Acesse a aplicação no navegador em `http://localhost:8080`.
+### 3. Development Server
+
+```bash
+npm run dev
+```
 
 ---
 
-## 📜 Scripts Disponíveis
+## 🧪 Testing
 
-- `npm run dev`: Inicia o servidor de desenvolvimento Vite.
-- `npm run build`: Compila a aplicação para produção na pasta `dist/`.
-- `npm run preview`: Executa a visualização do build compilado.
-- `npm run lint`: Executa a verificação estática do código com ESLint.
-- `npm run test`: Executa os testes automatizados com Vitest.
+```bash
+# Run the complete test suite
+npm test
+
+# Build production bundle
+npm run build
+```
 
 ---
 
-## 🔒 Conformidade DevSecOps
+## 📄 License
 
-Este projeto cumpre integralmente os requisitos de segurança da informação:
-- Isenção total de segredos ou tokens de acesso em hardcode.
-- Bloqueio completo no `.gitignore` para arquivos `.env`, `node_modules` e artefatos de build.
-- Arquitetura de isolamento multi-tenant baseada em Row Level Security (RLS) no PostgreSQL.
+Licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+Authored by **Luca Rodrigues Gomes de Sant'Anna**.
