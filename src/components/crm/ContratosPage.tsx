@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { FileText, Download, Upload, Trash2, AlertTriangle, Eye, PenTool, CheckCircle, CalendarDays } from 'lucide-react';
+import { FileText, Download, Upload, Trash2, AlertTriangle, Eye, PenTool, CheckCircle, CalendarDays, LayoutGrid, List, MessageSquare } from 'lucide-react';
 import { formatCurrency, formatDate, dataExtenso } from '@/lib/formatters';
 import { gerarContratoLimpezaDocx, gerarContratoMonitoramentoDocx } from '@/lib/contractUtils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -48,6 +48,7 @@ export default function ContratosPage() {
   const [resumo, setResumo] = useState<ContratoResumo | null>(null);
   const [contratos, setContratos] = useState<ContratoAgendamento[]>([]);
   const [filtroContrato, setFiltroContrato] = useState<'todos' | 'monitoramento' | 'limpeza'>('todos');
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [equipes, setEquipes] = useState<{ id: string; nome: string }[]>([]);
   const [vendedores, setVendedores] = useState<{ id: string; nome: string }[]>([]);
 
@@ -161,23 +162,26 @@ export default function ContratosPage() {
         cep: cliente.cep || '', documento: cliente.documento,
       };
 
+      let valorServicoCalculado = 0;
+
       // A8 FIX: Use shared contract utilities
       if (categoria === 'monitoramento') {
+        valorServicoCalculado = Number(cliente.valor_mensal) || 0;
         await gerarContratoMonitoramentoDocx({
           cliente: clienteData,
-          valorMensal: Number(cliente.valor_mensal) || 0,
+          valorMensal: valorServicoCalculado,
           duracaoMeses: cliente.duracao_meses || 12,
           templateUrl: templateAtual.url,
         });
       } else {
         const qtd = cliente.quantidade_placas || 0;
         const { data: valorTotal } = await supabase.rpc('calcular_preco_limpeza', { p_quantidade_modulos: qtd });
-        const total = Number(valorTotal) || 0;
+        valorServicoCalculado = Number(valorTotal) || 0;
         await gerarContratoLimpezaDocx({
           cliente: clienteData,
           qtdModulos: qtd,
-          valorTotal: total,
-          valorMedio: qtd > 0 ? total / qtd : 0,
+          valorTotal: valorServicoCalculado,
+          valorMedio: qtd > 0 ? valorServicoCalculado / qtd : 0,
           templateUrl: templateAtual.url,
         });
       }
@@ -197,7 +201,7 @@ export default function ContratosPage() {
         venda_confirmada: false,
         tipo_contrato: categoria,
         observacoes: `Contrato de ${categoria} gerado em ${now.toLocaleDateString('pt-BR')}${vendedorIdContrato ? ` | Vendedor: ${vendedores.find(v => v.id === vendedorIdContrato)?.nome || ''}` : ''}`,
-        valor_servico: categoria === 'monitoramento' ? (Number(cliente.valor_mensal) || 0) : 0,
+        valor_servico: valorServicoCalculado,
       });
 
       toast.success('Contrato gerado! Registro criado na aba Contratos.');
@@ -226,6 +230,7 @@ export default function ContratosPage() {
 
   async function handleConfirmarVenda() {
     if (!confirmDialog.contrato || !dataLimpeza) { toast.error('Informe a data do serviço'); return; }
+    if (!equipeIdConfirm) { toast.error('Selecione a equipe responsável para a execução do serviço.'); return; }
     const contrato = confirmDialog.contrato;
 
     // Validate weekday
@@ -240,7 +245,7 @@ export default function ContratosPage() {
       status: 'Confirmado',
       data_confirmacao: new Date().toISOString().split('T')[0],
       data_agendamento: dataLimpeza,
-      equipe_id: equipeIdConfirm || null,
+      equipe_id: equipeIdConfirm,
     }).eq('id', contrato.id);
 
     if (error) { toast.error('Erro: ' + error.message); return; }
@@ -527,85 +532,182 @@ export default function ContratosPage() {
       )}
 
       {/* Lista unificada de contratos gerados */}
-      <div className="glass-card rounded-xl overflow-hidden">
-        <div className="p-3 sm:p-4 border-b border-border flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-          <h3 className="font-display font-semibold text-sm sm:text-base">Contratos Gerados</h3>
+      <div className="glass-card rounded-xl overflow-hidden p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-border">
+          <div className="flex items-center gap-3">
+            <h3 className="font-display font-semibold text-base sm:text-lg text-foreground">Pipeline & Contratos</h3>
+            <div className="flex items-center bg-muted/60 rounded-lg p-0.5 border border-border">
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`p-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'kanban' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Visualização em Kanban"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'table' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Visualização em Lista/Tabela"
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-1 bg-muted/50 rounded-lg p-1 overflow-x-auto">
             {(['todos', 'monitoramento', 'limpeza'] as const).map(f => (
               <button key={f} onClick={() => setFiltroContrato(f)}
-                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-medium transition-all whitespace-nowrap ${filtroContrato === f ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                className={`px-2 sm:px-3 py-1 rounded-md text-[10px] sm:text-xs font-medium transition-all whitespace-nowrap ${filtroContrato === f ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                 {f === 'todos' ? 'Todos' : f === 'monitoramento' ? 'Monitoramento' : 'Limpeza'}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Mobile card view */}
-        <div className="sm:hidden divide-y divide-border/50">
-          {contratosFiltrados.map(c => (
-            <div key={c.id} className="p-3">
-              <div className="flex items-start justify-between gap-2 mb-1.5">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{c.cliente_nome}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{c.tipo_contrato || '-'} · {formatDate(c.created_at.split('T')[0])}</p>
+        {viewMode === 'kanban' ? (
+          /* Kanban Pipeline */
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Col 1: Propostas em Aberto */}
+            {(() => {
+              const propostas = contratosFiltrados.filter(c => !c.venda_confirmada);
+              const totalPropostas = propostas.reduce((s, c) => s + (Number(c.valor_servico) || 0), 0);
+              return (
+                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Propostas ({propostas.length})
+                    </span>
+                    <span className="text-xs font-semibold text-foreground">{formatCurrency(totalPropostas)}</span>
+                  </div>
+                  <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                    {propostas.map(c => (
+                      <div key={c.id} className="p-3 rounded-lg border border-border bg-card shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-semibold text-sm text-foreground line-clamp-1">{c.cliente_nome}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">{c.tipo_contrato}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-foreground">{c.valor_servico ? formatCurrency(c.valor_servico) : '-'}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatDate(c.created_at.split('T')[0])}</span>
+                        </div>
+                        {isAdmin && (
+                          <Button size="sm" onClick={() => openConfirmDialog(c)} className="w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 mt-1">
+                            <CheckCircle className="w-3.5 h-3.5" />Confirmar Venda
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {propostas.length === 0 && <div className="p-6 text-center text-muted-foreground text-xs">Sem propostas pendentes</div>}
+                  </div>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${getStatusColor(c)}`}>
-                  {getStatusLabel(c)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{c.valor_servico ? formatCurrency(c.valor_servico) : '-'}</span>
-                {!c.venda_confirmada && isAdmin && (
-                  <Button variant="outline" size="sm" onClick={() => openConfirmDialog(c)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 text-xs h-7">
-                    <CheckCircle className="w-3.5 h-3.5 mr-1" />Confirmar
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-          {contratosFiltrados.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground text-sm">Nenhum contrato gerado</div>
-          )}
-        </div>
+              );
+            })()}
 
-        {/* Desktop table view */}
-        <table className="w-full text-sm hidden sm:table">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left p-3 font-medium text-muted-foreground">Data</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Cliente</th>
-              <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Tipo</th>
-              <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Valor</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-              <th className="text-right p-3 font-medium text-muted-foreground">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contratosFiltrados.map(c => (
-              <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                <td className="p-3 text-muted-foreground">{formatDate(c.created_at.split('T')[0])}</td>
-                <td className="p-3 font-medium">{c.cliente_nome}</td>
-                <td className="p-3 text-muted-foreground hidden md:table-cell capitalize">{c.tipo_contrato || '-'}</td>
-                <td className="p-3 hidden md:table-cell">{c.valor_servico ? formatCurrency(c.valor_servico) : '-'}</td>
-                <td className="p-3">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(c)}`}>
-                    {getStatusLabel(c)}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  {!c.venda_confirmada && isAdmin && (
-                    <Button variant="outline" size="sm" onClick={() => openConfirmDialog(c)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">
-                      <CheckCircle className="w-4 h-4 mr-1" />Confirmar Venda
-                    </Button>
-                  )}
-                </td>
+            {/* Col 2: Vendas Confirmadas / Agendado */}
+            {(() => {
+              const confirmados = contratosFiltrados.filter(c => c.venda_confirmada && c.status !== 'Concluído');
+              const totalConfirmados = confirmados.reduce((s, c) => s + (Number(c.valor_servico) || 0), 0);
+              return (
+                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <span className="text-xs font-bold uppercase tracking-wider text-solar-info flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-solar-info" />
+                      Em Execução ({confirmados.length})
+                    </span>
+                    <span className="text-xs font-semibold text-foreground">{formatCurrency(totalConfirmados)}</span>
+                  </div>
+                  <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                    {confirmados.map(c => (
+                      <div key={c.id} className="p-3 rounded-lg border border-border bg-card shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-semibold text-sm text-foreground line-clamp-1">{c.cliente_nome}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${getStatusColor(c)}`}>{getStatusLabel(c)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-foreground">{c.valor_servico ? formatCurrency(c.valor_servico) : '-'}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatDate(c.data_agendamento)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {confirmados.length === 0 && <div className="p-6 text-center text-muted-foreground text-xs">Nenhum contrato em execução</div>}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Col 3: Concluídos */}
+            {(() => {
+              const concluidos = contratosFiltrados.filter(c => c.status === 'Concluído');
+              const totalConcluidos = concluidos.reduce((s, c) => s + (Number(c.valor_servico) || 0), 0);
+              return (
+                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
+                    <span className="text-xs font-bold uppercase tracking-wider text-solar-success flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-solar-success" />
+                      Concluídos ({concluidos.length})
+                    </span>
+                    <span className="text-xs font-semibold text-foreground">{formatCurrency(totalConcluidos)}</span>
+                  </div>
+                  <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                    {concluidos.map(c => (
+                      <div key={c.id} className="p-3 rounded-lg border border-border bg-card shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-semibold text-sm text-foreground line-clamp-1">{c.cliente_nome}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-medium">Finalizado</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-foreground">{c.valor_servico ? formatCurrency(c.valor_servico) : '-'}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatDate(c.data_agendamento)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {concluidos.length === 0 && <div className="p-6 text-center text-muted-foreground text-xs">Nenhum serviço concluído</div>}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        ) : (
+          /* Table View */
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left p-3 font-medium text-muted-foreground">Data</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Cliente</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Tipo</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Valor</th>
+                <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-right p-3 font-medium text-muted-foreground">Ações</th>
               </tr>
-            ))}
-            {contratosFiltrados.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum contrato gerado</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {contratosFiltrados.map(c => (
+                <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <td className="p-3 text-muted-foreground">{formatDate(c.created_at.split('T')[0])}</td>
+                  <td className="p-3 font-medium">{c.cliente_nome}</td>
+                  <td className="p-3 text-muted-foreground hidden md:table-cell capitalize">{c.tipo_contrato || '-'}</td>
+                  <td className="p-3 hidden md:table-cell">{c.valor_servico ? formatCurrency(c.valor_servico) : '-'}</td>
+                  <td className="p-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(c)}`}>
+                      {getStatusLabel(c)}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    {!c.venda_confirmada && isAdmin && (
+                      <Button variant="outline" size="sm" onClick={() => openConfirmDialog(c)} className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">
+                        <CheckCircle className="w-4 h-4 mr-1" />Confirmar Venda
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {contratosFiltrados.length === 0 && (
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum contrato gerado</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Confirm Sale Dialog */}

@@ -167,11 +167,29 @@ export default function ServicosExtrasPage() {
     if (status === 'Concluído') update.data_conclusao = new Date().toISOString().split('T')[0];
     const { error } = await supabase.from('servicos_extras').update(update).eq('id', id);
     if (error) { toast.error('Erro ao atualizar status'); return; }
+
+    // Synchronize corresponding agendamento record
+    const serviceRef = `Serviço Extra #${id.slice(0, 8)}`;
+    let agStatus = 'Agendado';
+    if (status === 'Concluído') agStatus = 'Concluído';
+    else if (status === 'Cancelado') agStatus = 'Cancelado';
+    else if (status === 'Pendente') agStatus = 'Pendente';
+    else if (status === 'Em Andamento') agStatus = 'Em Andamento';
+
+    await supabase.from('agendamentos')
+      .update({ status: agStatus })
+      .ilike('observacoes', `%${serviceRef}%`);
+
     toast.success(`Status atualizado para ${status}`);
     loadData();
   }
 
   async function handleDelete(id: string) {
+    const serviceRef = `Serviço Extra #${id.slice(0, 8)}`;
+    await supabase.from('agendamentos')
+      .delete()
+      .ilike('observacoes', `%${serviceRef}%`);
+
     const { error } = await supabase.from('servicos_extras').delete().eq('id', id);
     if (error) { toast.error('Erro ao excluir serviço'); return; }
     toast.success('Serviço excluído');

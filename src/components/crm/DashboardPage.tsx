@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
-import { DollarSign, Sun, Users, CalendarDays, CloudRain, AlertTriangle, Loader2, TrendingUp, Wrench } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DollarSign, Sun, Users, CalendarDays, CloudRain, AlertTriangle, Loader2, TrendingUp, Wrench, Sparkles } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { lazy, Suspense } from 'react';
+import SetupWizard from './SetupWizard';
 
 const RotasDoDia = lazy(() => import('./RotasDoDia'));
 
@@ -53,6 +55,7 @@ export default function DashboardPage() {
   const [cidadeData, setCidadeData] = useState<{ name: string; clientes: number }[]>([]);
   const [statusData, setStatusData] = useState<{ name: string; value: number }[]>([]);
   const [receitaFaixa, setReceitaFaixa] = useState<{ faixa: string; valor: number }[]>([]);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => {
     loadKPIs();
@@ -60,9 +63,10 @@ export default function DashboardPage() {
   }, []);
 
   async function loadKPIs() {
-    const [{ data: clientes }, { data: agendamentos }] = await Promise.all([
+    const [{ data: clientes }, { data: agendamentos }, { data: faixasDb }] = await Promise.all([
       supabase.from('clientes').select('valor_mensal, quantidade_placas, cidade, potencia_kwp, inicio_contrato').eq('ativo', true).not('inicio_contrato', 'is', null),
       supabase.from('agendamentos').select('id, status, tipo, data_agendamento, equipe_id'),
+      supabase.from('faixas_preco').select('*').eq('tipo', 'monitoramento').order('ordem'),
     ]);
 
     if (clientes) {
@@ -87,16 +91,47 @@ export default function DashboardPage() {
           .map(([name, clientes]) => ({ name, clientes }))
       );
 
-      // Clientes por faixa
-      const faixas = { 'R$100': 0, 'R$160': 0, 'R$270': 0, 'R$380': 0 };
-      cList.forEach(c => {
-        const v = Number(c.valor_mensal) || 0;
-        if (v <= 100) faixas['R$100'] += 1;
-        else if (v <= 160) faixas['R$160'] += 1;
-        else if (v <= 270) faixas['R$270'] += 1;
-        else faixas['R$380'] += 1;
-      });
-      setReceitaFaixa(Object.entries(faixas).map(([faixa, valor]) => ({ faixa, valor })));
+      // Clientes por faixa (dinâmico a partir de faixas_preco)
+      if (faixasDb && faixasDb.length > 0) {
+        const faixaCounts: Record<string, number> = {};
+        faixasDb.forEach(f => {
+          const label = f.label || `R$ ${Number(f.valor).toFixed(0)}`;
+          faixaCounts[label] = 0;
+        });
+
+        cList.forEach(c => {
+          const v = Number(c.valor_mensal) || 0;
+          let matched = false;
+          for (const f of faixasDb) {
+            const label = f.label || `R$ ${Number(f.valor).toFixed(0)}`;
+            if (f.faixa_fim !== null && v <= Number(f.valor)) {
+              faixaCounts[label] = (faixaCounts[label] || 0) + 1;
+              matched = true;
+              break;
+            } else if (f.faixa_fim === null) {
+              faixaCounts[label] = (faixaCounts[label] || 0) + 1;
+              matched = true;
+              break;
+            }
+          }
+          if (!matched && faixasDb.length > 0) {
+            const firstLabel = faixasDb[0].label || `R$ ${Number(faixasDb[0].valor).toFixed(0)}`;
+            faixaCounts[firstLabel] = (faixaCounts[firstLabel] || 0) + 1;
+          }
+        });
+        setReceitaFaixa(Object.entries(faixaCounts).map(([faixa, valor]) => ({ faixa, valor })));
+      } else {
+        // Fallback genérico proporcional
+        const faixas = { 'Até R$150': 0, 'R$151-250': 0, 'R$251-400': 0, 'Acima R$400': 0 };
+        cList.forEach(c => {
+          const v = Number(c.valor_mensal) || 0;
+          if (v <= 150) faixas['Até R$150'] += 1;
+          else if (v <= 250) faixas['R$151-250'] += 1;
+          else if (v <= 400) faixas['R$251-400'] += 1;
+          else faixas['Acima R$400'] += 1;
+        });
+        setReceitaFaixa(Object.entries(faixas).map(([faixa, valor]) => ({ faixa, valor })));
+      }
     }
 
     if (agendamentos) {
@@ -124,60 +159,103 @@ export default function DashboardPage() {
   }
 
   const cards = [
-    { label: 'Receita Mensal Estimada', value: formatCurrency(kpis.receitaMensal), icon: DollarSign, color: 'text-solar-orange' },
-    { label: 'Painéis Monitorados', value: kpis.totalPaineis.toString(), icon: Sun, color: 'text-solar-amber' },
-    { label: 'Clientes Ativos', value: kpis.totalClientes.toString(), icon: Users, color: 'text-solar-info' },
-    { label: 'Manutenções Pendentes', value: kpis.agendamentosPendentes.toString(), icon: CalendarDays, color: 'text-solar-success' },
+    { label: 'Receita Mensal Estimada', value: formatCurrency(kpis.receitaMensal), icon: DollarSign, color: 'text-primary', badge: 'FATURAMENTO' },
+    { label: 'Painéis Monitorados', value: kpis.totalPaineis.toLocaleString('pt-BR'), icon: Sun, color: 'text-amber-500', badge: 'SISTEMAS' },
+    { label: 'Clientes Ativos', value: kpis.totalClientes.toString(), icon: Users, color: 'text-sky-500', badge: 'BASE' },
+    { label: 'Manutenções Pendentes', value: kpis.agendamentosPendentes.toString(), icon: CalendarDays, color: 'text-emerald-500', badge: 'AGENDA' },
   ];
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <h2 className="font-display text-2xl font-bold text-foreground">Dashboard</h2>
+    <div className="animate-fade-in space-y-5">
+      {/* Header with Telemetry Status */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-border/60">
+        <div>
+          <h2 className="font-display text-xl lg:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            Cockpit de Operações
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Centro de comando, telemetria de clientes e logística de campo</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWizardOpen(true)}
+            className="text-xs h-7 gap-1.5 px-2.5 bg-primary/5 hover:bg-primary/10 border-primary/20 text-foreground"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            Guia de Configuração
+          </Button>
 
-      {/* Weather Alert */}
+          <span className="hud-badge-online">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            </span>
+            SISTEMA OPERACIONAL
+          </span>
+        </div>
+      </div>
+
+      <SetupWizard open={wizardOpen} onOpenChange={setWizardOpen} onSetupComplete={loadKPIs} />
+
+      {/* Weather Alert Sensor */}
       {weatherLoading ? (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Verificando previsão do tempo...</span>
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-card/60 border border-border/60">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span className="text-xs font-mono text-muted-foreground">Sincronizando telemetria meteorológica...</span>
         </div>
       ) : weather?.alert ? (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30 relative overflow-hidden">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <CloudRain className="w-4 h-4 text-destructive" />
-              <p className="text-sm font-semibold text-destructive">
-                Alerta de Chuva — {(weather.precipitation ?? weather.probability ?? 0)}% de probabilidade para amanhã
+              <p className="text-xs font-mono font-bold text-destructive uppercase tracking-wider">
+                Alerta de Chuva · {(weather.precipitation ?? weather.probability ?? 0)}% de probabilidade
               </p>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-destructive/20 text-destructive border border-destructive/30">
+                RISCO DE RETRABALHO
+              </span>
             </div>
-            <p className="text-sm text-foreground">{weather.alert}</p>
+            <p className="text-xs text-foreground/90 leading-relaxed">{weather.alert}</p>
             {kpis.agendamentosPendentes > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Sugerimos adiar as {kpis.agendamentosPendentes} limpeza(s) pendente(s) para evitar retrabalho.
+              <p className="text-[11px] font-mono text-muted-foreground mt-1.5">
+                Recomendação: Reprogramar as {kpis.agendamentosPendentes} limpeza(s) pendente(s) da rota.
               </p>
             )}
           </div>
         </div>
       ) : weather && (weather.precipitation ?? weather.probability ?? 0) <= 30 ? (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-solar-success/10 border border-solar-success/20">
-          <Sun className="w-4 h-4 text-solar-success" />
-          <span className="text-sm text-foreground">
-            Tempo bom em Cabo Frio — {(weather.precipitation ?? weather.probability ?? 0)}% de probabilidade de chuva. Limpezas podem prosseguir normalmente.
+        <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-2.5">
+            <Sun className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-xs text-foreground/90 font-medium">
+              Tempo estável na região — <span className="font-mono text-emerald-500 font-semibold">{(weather.precipitation ?? weather.probability ?? 0)}%</span> de chance de chuva.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 hidden sm:inline-block">
+            ROTAS LIBERADAS
           </span>
         </div>
       ) : null}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+      {/* KPI Bento Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="kpi-card p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-2 lg:mb-3">
-                <span className="text-xs lg:text-sm text-muted-foreground">{card.label}</span>
-                <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${card.color}`} />
+            <div key={card.label} className="hud-metric-card group">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-medium text-muted-foreground truncate">{card.label}</span>
+                <div className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center border border-border/50 group-hover:border-primary/40 transition-colors">
+                  <Icon className={`w-3.5 h-3.5 ${card.color}`} />
+                </div>
               </div>
-              <p className="text-lg lg:text-2xl font-display font-bold text-foreground">{card.value}</p>
+              <p className="hud-metric-value text-xl lg:text-2xl mt-1">{card.value}</p>
+              <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/40 text-[10px] font-mono text-muted-foreground">
+                <span className="uppercase tracking-wider">{card.badge}</span>
+                <span className="text-emerald-500 flex items-center gap-0.5">● ATIVO</span>
+              </div>
             </div>
           );
         })}
@@ -188,56 +266,52 @@ export default function DashboardPage() {
         <RotasDoDia />
       </Suspense>
 
-      <div className="glass-card rounded-xl p-6 flex items-center gap-4 border-l-4 border-primary">
-        <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-          <DollarSign className="w-7 h-7 text-primary" />
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Receita Mensal Total (Monitoramento)</p>
-          <p className="text-3xl font-display font-bold text-foreground">{formatCurrency(kpis.receitaMensal)}</p>
-        </div>
-      </div>
-
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Receita por Faixa */}
-        <div className="glass-card rounded-xl p-6">
-          <h3 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-solar-orange" />
-            Receita por Faixa de Monitoramento
-          </h3>
-          <div className="h-64">
+        <div className="glass-card rounded-xl p-5 border border-border/70">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              Distribuição por Faixa de Monitoramento
+            </h3>
+            <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-muted/60">CONTRATOS</span>
+          </div>
+          <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={receitaFaixa}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="faixa" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" opacity={0.6} />
+                <XAxis dataKey="faixa" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontFamily: 'var(--font-mono)' }} />
+                <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontFamily: 'var(--font-mono)' }} allowDecimals={false} />
                 <Tooltip
                   formatter={(value: number) => [value, 'Clientes']}
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 12 }}
                 />
-                <Bar dataKey="valor" fill="hsl(25, 95%, 53%)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Status dos Agendamentos */}
-        <div className="glass-card rounded-xl p-6">
-          <h3 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Wrench className="w-5 h-5 text-solar-info" />
-            Agendamentos por Status
-          </h3>
-          <div className="h-64">
+        <div className="glass-card rounded-xl p-5 border border-border/70">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-sky-500" />
+              Status de Ordens de Serviço
+            </h3>
+            <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-muted/60">OPERAÇÕES</span>
+          </div>
+          <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={4} dataKey="value" nameKey="name" label={({ name, value }) => `${name} (${value})`}>
+                <Pie data={statusData} cx="50%" cy="50%" innerRadius={48} outerRadius={80} paddingAngle={4} dataKey="value" nameKey="name">
                   {statusData.map((_, index) => (
-                    <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="hsl(var(--card))" strokeWidth={2} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-                <Legend />
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'var(--font-mono)' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -246,19 +320,22 @@ export default function DashboardPage() {
 
       {/* Clientes por Cidade */}
       {cidadeData.length > 0 && (
-        <div className="glass-card rounded-xl p-6">
-          <h3 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-solar-amber" />
-            Clientes por Cidade
-          </h3>
-          <div className="h-64">
+        <div className="glass-card rounded-xl p-5 border border-border/70">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-semibold text-sm text-foreground flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-500" />
+              Densidade Geográfica de Clientes
+            </h3>
+            <span className="text-[10px] font-mono text-muted-foreground px-2 py-0.5 rounded bg-muted/60">TOP 6 MUNICÍPIOS</span>
+          </div>
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cidadeData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                <YAxis dataKey="name" type="category" width={120} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-                <Bar dataKey="clientes" fill="hsl(38, 92%, 50%)" radius={[0, 6, 6, 0]} />
+                <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" opacity={0.6} />
+                <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontFamily: 'var(--font-mono)' }} />
+                <YAxis dataKey="name" type="category" width={130} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 12 }} />
+                <Bar dataKey="clientes" fill="hsl(38, 92%, 50%)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

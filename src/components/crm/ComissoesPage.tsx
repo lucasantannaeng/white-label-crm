@@ -110,11 +110,10 @@ export default function ComissoesPage() {
           const { data: resp } = await supabase.functions.invoke('manage-users', {
             body: { action: 'list' },
           });
-          if (resp?.users) {
-            for (const u of resp.users) {
-              if (missingProfileIds.includes(u.id)) {
-                profileMap[u.id] = { nome: u.nome || u.email || '', email: u.email || '' };
-              }
+          const userList = Array.isArray(resp) ? resp : resp?.users || [];
+          for (const u of userList) {
+            if (missingProfileIds.includes(u.id)) {
+              profileMap[u.id] = { nome: u.nome || u.email || '', email: u.email || '' };
             }
           }
         } catch { /* fallback to truncated id */ }
@@ -186,28 +185,36 @@ export default function ComissoesPage() {
         .eq('ativo', true)
         .order('nome');
 
-      // Get agendamentos to determine contract type
+      // Get agendamentos to determine contract type and service value
       const clienteIds = (clientes || []).map(c => c.id);
       let tipoMap: Record<string, string> = {};
+      let agendamentoValorMap: Record<string, number> = {};
+
       if (clienteIds.length > 0) {
         const { data: agendamentos } = await supabase
           .from('agendamentos')
-          .select('cliente_id, tipo_contrato')
+          .select('cliente_id, tipo_contrato, valor_servico')
           .in('cliente_id', clienteIds)
-          .not('tipo_contrato', 'is', null);
+          .order('created_at', { ascending: false });
         agendamentos?.forEach(a => {
-          if (a.tipo_contrato) tipoMap[a.cliente_id] = a.tipo_contrato;
+          if (a.tipo_contrato && !tipoMap[a.cliente_id]) tipoMap[a.cliente_id] = a.tipo_contrato;
+          if (Number(a.valor_servico) > 0 && !agendamentoValorMap[a.cliente_id]) {
+            agendamentoValorMap[a.cliente_id] = Number(a.valor_servico);
+          }
         });
       }
 
-      const clienteContratos: ClienteContrato[] = (clientes || []).map(c => ({
-        id: c.id,
-        nome: c.nome,
-        valor_mensal: Number(c.valor_mensal) || 0,
-        duracao_meses: Number(c.duracao_meses) || 12,
-        inicio_contrato: c.inicio_contrato,
-        tipo_contrato: tipoMap[c.id] || null,
-      }));
+      const clienteContratos: ClienteContrato[] = (clientes || []).map(c => {
+        const baseValor = Number(c.valor_mensal) > 0 ? Number(c.valor_mensal) : (agendamentoValorMap[c.id] || 0);
+        return {
+          id: c.id,
+          nome: c.nome,
+          valor_mensal: baseValor,
+          duracao_meses: Number(c.duracao_meses) || (baseValor > 0 && !tipoMap[c.id]?.includes('monitoramento') ? 1 : 12),
+          inicio_contrato: c.inicio_contrato,
+          tipo_contrato: tipoMap[c.id] || null,
+        };
+      });
 
       setContratos(clienteContratos);
 

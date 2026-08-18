@@ -25,7 +25,7 @@ const allNavItems: { id: Page; label: string; icon: React.ElementType; access: '
   { id: 'servicos-extras', label: 'Novos Serviços', icon: Wrench, access: 'admin_vendedor' },
   { id: 'equipes', label: 'Equipes', icon: UsersRound, access: 'admin' },
   { id: 'comissoes', label: 'Comissões', icon: DollarSign, access: 'admin' },
-  { id: 'documentos', label: 'Documentos', icon: FolderOpen, access: 'admin' },
+  { id: 'documentos', label: 'Documentos', icon: FolderOpen, access: 'all' },
   { id: 'ai-hub', label: 'Hub de IA', icon: BotMessageSquare, access: 'all' },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, access: 'master' },
 ];
@@ -51,8 +51,8 @@ export default function AppSidebar({ currentPage, onNavigate, role, nomeEmpresa,
 
   const navItems = allNavItems.filter(item => {
     if (isViewer) return item.id === 'dashboard';
-    // Técnicos: only specific pages
-    if (isTecnico) return ['agenda', 'calculadora', 'contratos', 'ai-hub'].includes(item.id);
+    // Técnicos: field-accessible pages
+    if (isTecnico) return ['agenda', 'clientes', 'calculadora', 'contratos', 'ai-hub', 'documentos'].includes(item.id);
     if (item.access === 'all') return true;
     if (item.access === 'admin_vendedor') return isAdmin || role === 'vendedor';
     if (item.access === 'master') return isMaster;
@@ -77,30 +77,38 @@ export default function AppSidebar({ currentPage, onNavigate, role, nomeEmpresa,
         )}
       >
         {/* Header */}
-        <div className="p-4 flex items-center gap-3">
+        <div className="p-4 flex items-center gap-3 border-b border-sidebar-border/60">
           {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-xl object-contain flex-shrink-0" />
+            <img src={logoUrl} alt="Logo" className="w-9 h-9 rounded-xl object-contain flex-shrink-0" />
           ) : (
-            <div className="w-10 h-10 rounded-xl solar-gradient flex items-center justify-center flex-shrink-0">
-              <Sun className="w-6 h-6 text-sidebar-primary-foreground" />
+            <div className="w-9 h-9 rounded-xl solar-gradient flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/20">
+              <Sun className="w-5 h-5 text-sidebar-primary-foreground" />
             </div>
           )}
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <h1 className="font-display font-bold text-base text-sidebar-primary-foreground truncate">{nomeEmpresa || 'Solar Service'}</h1>
-              <p className="text-xs text-sidebar-foreground/60">CRM</p>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display font-bold text-sm text-sidebar-primary-foreground truncate">{nomeEmpresa || 'Solar Service'}</h1>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400/90 font-medium">ONLINE</span>
+              </div>
             </div>
           )}
           <button
             onClick={onToggleCollapse}
-            className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors flex-shrink-0"
+            className="text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors flex-shrink-0"
             title={collapsed ? "Expandir menu" : "Recolher menu"}
           >
-            {collapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
           </button>
         </div>
 
-        <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-2.5 py-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -115,36 +123,41 @@ export default function AppSidebar({ currentPage, onNavigate, role, nomeEmpresa,
                 }}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 relative",
                   collapsed && "lg:justify-center lg:px-2",
                   isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    ? "bg-sidebar-accent text-sidebar-primary-foreground font-semibold shadow-sm border border-sidebar-border before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:bg-primary before:rounded-r"
+                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 )}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                <Icon className={cn("w-4 h-4 flex-shrink-0 transition-transform", isActive ? "text-primary scale-105" : "text-sidebar-foreground/60")} />
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </button>
             );
           })}
         </nav>
 
         {!collapsed && (
-          <div className="p-4 border-t border-sidebar-border space-y-3">
+          <div className="p-3 border-t border-sidebar-border/60 space-y-2.5 bg-sidebar-background/50">
             {userName && (
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-sidebar-foreground/80 truncate">{userName}</p>
-                  <p className="text-[10px] text-sidebar-foreground/40 uppercase">{getRoleLabel(role)}</p>
+              <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-sidebar-accent/40 border border-sidebar-border/40">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-sidebar-foreground truncate">{userName}</p>
+                  <span className="inline-block mt-0.5 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-medium">
+                    {getRoleLabel(role)}
+                  </span>
                 </div>
                 {onSignOut && (
-                  <button onClick={onSignOut} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors" title="Sair">
-                    <LogOut className="w-4 h-4" />
+                  <button onClick={onSignOut} className="text-sidebar-foreground/40 hover:text-destructive transition-colors p-1" title="Sair do Sistema">
+                    <LogOut className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             )}
-            <p className="text-xs text-sidebar-foreground/40 text-center">{nomeEmpresa || 'Solar Service'} CRM v2.1</p>
+            <div className="flex items-center justify-between text-[10px] font-mono text-sidebar-foreground/40 px-1">
+              <span>{nomeEmpresa || 'Solar Service'}</span>
+              <span>v2.2-pro</span>
+            </div>
           </div>
         )}
 

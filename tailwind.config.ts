@@ -14,10 +14,17 @@ export default {
     },
     extend: {
       fontFamily: {
+        sans: ['Inter', 'sans-serif'],
         display: ['Space Grotesk', 'sans-serif'],
         body: ['Inter', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
       },
       colors: {
+        cyan: {
+          glow: '#06b6d4',
+          subtle: '#0891b2',
+          accent: '#38bdf8',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

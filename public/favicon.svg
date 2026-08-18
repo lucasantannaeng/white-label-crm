@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="solarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="50%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="panelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded Base Badge -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#panelGrad)" stroke="#334155" stroke-width="8" />
+  
+  <!-- Glowing Solar Grid Lines -->
+  <path d="M 120 256 L 392 256" stroke="#334155" stroke-width="6" stroke-dasharray="8 8" opacity="0.4" />
+  <path d="M 256 120 L 256 392" stroke="#334155" stroke-width="6" stroke-dasharray="8 8" opacity="0.4" />
+  
+  <!-- Solar Sun Rays -->
+  <g stroke="url(#solarGrad)" stroke-width="18" stroke-linecap="round" opacity="0.9">
+    <line x1="256" y1="92" x2="256" y2="128" />
+    <line x1="256" y1="384" x2="256" y2="420" />
+    <line x1="92" y1="256" x2="128" y2="256" />
+    <line x1="384" y1="256" x2="420" y2="256" />
+    <line x1="140" y1="140" x2="166" y2="166" />
+    <line x1="346" y1="346" x2="372" y2="372" />
+    <line x1="372" y1="140" x2="346" y2="166" />
+    <line x1="166" y1="346" x2="140" y2="372" />
+  </g>
+  
+  <!-- Central Solar Core (Sun + Energy Pulse) -->
+  <circle cx="256" cy="256" r="88" fill="url(#solarGrad)" />
+  <circle cx="256" cy="256" r="76" fill="#0f172a" />
+  
+  <!-- Stylized Solar Panel / Lightning Monogram -->
+  <path d="M 268 188 L 220 268 L 252 268 L 244 324 L 292 244 L 260 244 Z" fill="url(#solarGrad)" />
+  
+  <!-- Sparkle Accent -->
+  <circle cx="340" cy="172" r="10" fill="#38bdf8" />
+</svg>

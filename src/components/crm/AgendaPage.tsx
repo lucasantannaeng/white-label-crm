@@ -15,6 +15,7 @@ import { formatDate, formatCurrency } from '@/lib/formatters';
 import ChecklistVT from './ChecklistVT';
 import AgendaConflictDialog, { findNextAvailableDate, getPriorityBadge } from './AgendaConflictDialog';
 import SignaturePad from './SignaturePad';
+import RotasDoDia from './RotasDoDia';
 import { triggerRouteOptimizer } from '@/hooks/useRouteOptimizer';
 import { isWeekday, ensureWeekday } from '@/lib/dateUtils';
 import type { Tables } from '@/integrations/supabase/types';
@@ -243,11 +244,15 @@ export default function AgendaPage() {
       const limits = getEquipeLimits(dayAg, editForm.equipe_id);
 
       if (isLimpeza(ag.tipo) && !limits.podeLimpeza) {
-        toast.error(`Equipe já atingiu o limite de ${limits.maxLimpezas} limpeza(s) neste dia. Escolha outra data ou equipe.`);
+        setConflictingAgendamentos(dayAg);
+        setShowConflictDialog(true);
+        toast.warning(`Equipe atingiu o limite de ${limits.maxLimpezas} limpeza(s) no dia. Escolha outro agendamento para remanejamento inteligente.`);
         return;
       }
       if (isVT(ag.tipo) && !limits.podeVT) {
-        toast.error(`Equipe já atingiu o limite de V.T.s neste dia (${limits.vts}/${limits.maxVTs}). Escolha outra data ou equipe.`);
+        setConflictingAgendamentos(dayAg);
+        setShowConflictDialog(true);
+        toast.warning(`Equipe atingiu o limite de V.T.s no dia (${limits.vts}/${limits.maxVTs}). Escolha outro agendamento para remanejamento inteligente.`);
         return;
       }
     }
@@ -379,55 +384,65 @@ export default function AgendaPage() {
         </div>
       )}
 
-          {/* Calendar */}
-          <div className="glass-card rounded-xl p-3 sm:p-5 mb-4 sm:mb-6">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(new Date(year, month - 1))}><ChevronLeft className="w-5 h-5" /></Button>
-              <h3 className="font-display font-semibold capitalize text-sm sm:text-base">{monthName}</h3>
-              <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(new Date(year, month + 1))}><ChevronRight className="w-5 h-5" /></Button>
-            </div>
+      {/* Roteirização e GPS das Equipes em Campo */}
+      <div className="mb-5">
+        <RotasDoDia />
+      </div>
 
-            <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-              {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                <div key={i} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2 sm:hidden">{d}</div>
-              ))}
-              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 hidden sm:block">{d}</div>
-              ))}
-              {calendarDays.map((day, i) => {
-                if (day === null) return <div key={`empty-${i}`} />;
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const dayAgendamentos = agendamentosByDate[dateStr] || [];
-                const isToday = new Date().toISOString().slice(0, 10) === dateStr;
-                return (
-                  <div
-                    key={dateStr}
-                    className={`min-h-[40px] sm:min-h-[60px] rounded-lg p-0.5 sm:p-1 text-xs border transition-colors ${
-                      isToday ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
-                    }`}
-                  >
-                    <span className={`font-medium text-[10px] sm:text-xs ${isToday ? 'text-primary' : 'text-foreground'}`}>{day}</span>
-                    {/* On mobile show dots, on desktop show text */}
-                    <div className="sm:hidden flex flex-wrap gap-0.5 mt-0.5">
-                      {dayAgendamentos.slice(0, 3).map(a => (
-                        <div
-                          key={a.id}
-                          onClick={() => openEditDialog(a)}
-                          className={`w-1.5 h-1.5 rounded-full cursor-pointer ${
-                            a.prioridade === 'Urgente' ? 'bg-destructive' :
-                            a.prioridade === 'Alta' ? 'bg-orange-500' :
-                            a.prioridade === 'Baixa' ? 'bg-emerald-500' :
-                            a.status === 'Concluído' ? 'bg-solar-success' :
-                            a.status === 'Cancelado' ? 'bg-destructive' :
-                            'bg-primary'
-                          }`}
-                        />
-                      ))}
-                      {dayAgendamentos.length > 3 && (
-                        <span className="text-[8px] text-muted-foreground">+{dayAgendamentos.length - 3}</span>
-                      )}
-                    </div>
-                    <div className="hidden sm:block">
+      {/* Calendar */}
+      <div className="glass-card rounded-xl p-3 sm:p-5 mb-4 sm:mb-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(new Date(year, month - 1))}><ChevronLeft className="w-5 h-5" /></Button>
+          <h3 className="font-display font-semibold capitalize text-sm sm:text-base">{monthName}</h3>
+          <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(new Date(year, month + 1))}><ChevronRight className="w-5 h-5" /></Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+          {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+            <div key={i} className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1 sm:py-2 sm:hidden">{d}</div>
+          ))}
+          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 hidden sm:block">{d}</div>
+          ))}
+          {calendarDays.map((day, i) => {
+            if (day === null) return <div key={`empty-${i}`} />;
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayAgendamentos = agendamentosByDate[dateStr] || [];
+            const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+            return (
+              <div
+                key={dateStr}
+                className={`min-h-[44px] sm:min-h-[60px] rounded-lg p-1 text-xs border transition-colors ${
+                  isToday ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
+                }`}
+              >
+                <span className={`font-medium text-[10px] sm:text-xs ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>{day}</span>
+                {/* On mobile show accessible touch dots/chips */}
+                <div className="sm:hidden flex flex-wrap gap-1 mt-0.5">
+                  {dayAgendamentos.slice(0, 3).map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => openEditDialog(a)}
+                      className="p-1 -m-0.5 flex items-center justify-center rounded focus:outline-none"
+                      title={`${a.cliente_nome} - ${a.tipo}`}
+                    >
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full inline-block ${
+                          a.prioridade === 'Urgente' ? 'bg-destructive ring-1 ring-destructive/40' :
+                          a.prioridade === 'Alta' ? 'bg-orange-500' :
+                          a.prioridade === 'Baixa' ? 'bg-emerald-500' :
+                          a.status === 'Concluído' ? 'bg-solar-success' :
+                          a.status === 'Cancelado' ? 'bg-destructive' :
+                          'bg-primary'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  {dayAgendamentos.length > 3 && (
+                    <span className="text-[8px] font-mono text-muted-foreground self-center">+{dayAgendamentos.length - 3}</span>
+                  )}
+                </div>
+                <div className="hidden sm:block">
                     {dayAgendamentos.map(a => (
                       <div
                         key={a.id}

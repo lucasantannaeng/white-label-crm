@@ -36,3 +36,7 @@ lerna-debug.log*
 
 # Temporary / Lovable artifacts
 .lovable/
+
+graphify-out/
+.agents/
+

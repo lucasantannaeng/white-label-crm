@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Clock, Users, Route, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Clock, Users, Route, ChevronDown, ChevronUp, Navigation, MessageSquare, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getPriorityBadge } from './AgendaConflictDialog';
+import { formatWhatsAppUrl } from '@/lib/formatters';
 
 interface AgendamentoRota {
   id: string;
@@ -13,6 +14,9 @@ interface AgendamentoRota {
   cliente_nome: string;
   cidade: string;
   rua: string;
+  numero: string;
+  bairro: string;
+  telefone: string;
 }
 
 interface EquipeRota {
@@ -37,7 +41,7 @@ export default function RotasDoDia() {
       const [{ data: agendamentos }, { data: equipes }] = await Promise.all([
         supabase
           .from('agendamentos')
-          .select('id, tipo, hora, status, prioridade, equipe_id, clientes(nome, cidade, rua)')
+          .select('id, tipo, hora, status, prioridade, equipe_id, clientes(nome, cidade, rua, numero, bairro, telefone)')
           .eq('data_agendamento', today)
           .not('status', 'eq', 'Cancelado')
           .not('equipe_id', 'is', null)
@@ -66,6 +70,9 @@ export default function RotasDoDia() {
           cliente_nome: cl?.nome || 'N/A',
           cidade: cl?.cidade || 'N/A',
           rua: cl?.rua || '',
+          numero: cl?.numero || '',
+          bairro: cl?.bairro || '',
+          telefone: cl?.telefone || '',
         });
       }
 
@@ -146,6 +153,34 @@ export default function RotasDoDia() {
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <MapPin className="w-3 h-3" />
                           {ag.cidade}{ag.rua ? ` · ${ag.rua}` : ''}
+                        </div>
+                        
+                        {/* Field Technician Actions: GPS Navigation & WhatsApp */}
+                        <div className="flex items-center gap-2 mt-2 pt-1 border-t border-border/40">
+                          {ag.rua && (
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${ag.rua}, ${ag.numero || ''}, ${ag.bairro || ''}, ${ag.cidade}`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                              title="Abrir rota no Google Maps / Waze"
+                            >
+                              <Navigation className="w-3 h-3" />
+                              Navegar GPS
+                            </a>
+                          )}
+                          {ag.telefone && (
+                            <a
+                              href={formatWhatsAppUrl(ag.telefone, `Olá ${ag.cliente_nome}, nossa equipe técnica da Solar Service está a caminho para o atendimento hoje!`)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:underline font-medium ml-auto"
+                              title="Avisar cliente no WhatsApp"
+                            >
+                              <MessageSquare className="w-3 h-3" />
+                              Avisar no WhatsApp
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>

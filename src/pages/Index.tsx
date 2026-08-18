@@ -35,10 +35,11 @@ export default function Index() {
     setSidebarCollapsed(isMobile);
   }, [isMobile]);
 
-  if (authLoading || systemLoading) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground font-mono">Iniciando Solar CRM...</span>
       </div>
     );
   }
@@ -49,8 +50,8 @@ export default function Index() {
 
   // Pages accessible by role
   const viewerPages: Page[] = ['dashboard'];
-  const tecnicoPages: Page[] = ['agenda', 'calculadora', 'contratos', 'ai-hub'];
-  const vendedorPages: Page[] = ['agenda', 'servicos-extras', 'calculadora', 'clientes', 'contratos', 'ai-hub'];
+  const tecnicoPages: Page[] = ['agenda', 'clientes', 'calculadora', 'contratos', 'ai-hub', 'documentos'];
+  const vendedorPages: Page[] = ['agenda', 'servicos-extras', 'calculadora', 'clientes', 'contratos', 'ai-hub', 'documentos'];
   const adminPages: Page[] = ['dashboard', 'agenda', 'servicos-extras', 'calculadora', 'clientes', 'contratos', 'ai-hub', 'equipes', 'comissoes', 'documentos'];
   const masterPages: Page[] = [...adminPages, 'configuracoes'];
 

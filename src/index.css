@@ -1,19 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 20% 10%;
+    --background: 220 25% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    --popover-foreground: 222 47% 11%;
 
     --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
@@ -36,13 +36,13 @@
 
     --radius: 0.75rem;
 
-    --sidebar-background: 220 20% 10%;
+    --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 15% 85%;
     --sidebar-primary: 25 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 16%;
-    --sidebar-accent-foreground: 210 15% 85%;
-    --sidebar-border: 220 15% 18%;
+    --sidebar-accent: 222 35% 14%;
+    --sidebar-accent-foreground: 210 15% 92%;
+    --sidebar-border: 222 30% 16%;
     --sidebar-ring: 25 95% 53%;
 
     --solar-orange: 25 95% 53%;
@@ -53,35 +53,36 @@
 
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
   }
 
   .dark {
-    --background: 220 20% 7%;
-    --foreground: 210 15% 93%;
-    --card: 220 18% 11%;
-    --card-foreground: 210 15% 93%;
-    --popover: 220 18% 11%;
-    --popover-foreground: 210 15% 93%;
+    --background: 222 47% 6%;
+    --foreground: 210 20% 95%;
+    --card: 222 40% 9%;
+    --card-foreground: 210 20% 95%;
+    --popover: 222 40% 9%;
+    --popover-foreground: 210 20% 95%;
     --primary: 25 95% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 16%;
-    --secondary-foreground: 210 15% 85%;
-    --muted: 220 12% 18%;
-    --muted-foreground: 215 12% 55%;
+    --secondary: 222 30% 14%;
+    --secondary-foreground: 210 15% 90%;
+    --muted: 222 25% 15%;
+    --muted-foreground: 215 15% 60%;
     --accent: 25 90% 48%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 12% 20%;
-    --input: 220 12% 20%;
+    --border: 222 30% 16%;
+    --input: 222 30% 16%;
     --ring: 25 95% 53%;
-    --sidebar-background: 220 20% 5%;
+    --sidebar-background: 224 50% 5%;
     --sidebar-foreground: 210 15% 85%;
     --sidebar-primary: 25 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 12%;
-    --sidebar-accent-foreground: 210 15% 85%;
-    --sidebar-border: 220 15% 14%;
+    --sidebar-accent: 222 35% 12%;
+    --sidebar-accent-foreground: 210 15% 92%;
+    --sidebar-border: 222 30% 13%;
     --sidebar-ring: 25 95% 53%;
   }
 }
@@ -114,11 +115,36 @@
   }
 
   .glass-card {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm;
+    @apply bg-card/85 backdrop-blur-md border border-border/60 shadow-sm transition-all duration-200;
   }
 
   .kpi-card {
-    @apply bg-card rounded-xl border border-border/50 p-6 shadow-sm hover:shadow-md transition-shadow;
+    @apply bg-card/90 rounded-xl border border-border/70 p-5 shadow-sm hover:border-primary/40 hover:shadow-md transition-all;
+  }
+
+  /* Industrial Anti-Slop HUD components */
+  .hud-metric-card {
+    @apply relative overflow-hidden rounded-xl bg-gradient-to-b from-card/95 to-card/75 border border-border/70 p-4 transition-all duration-200 hover:border-primary/40;
+  }
+
+  .hud-badge-online {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/25;
+  }
+
+  .hud-badge-warning {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-amber-500/10 text-amber-500 border border-amber-500/25;
+  }
+
+  .hud-badge-cyan {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-sky-500/10 text-sky-500 border border-sky-500/25;
+  }
+
+  .hud-metric-value {
+    @apply font-mono font-bold tracking-tight tabular-nums text-foreground;
+  }
+
+  .tech-chip {
+    @apply font-mono text-[11px] px-2 py-0.5 rounded bg-muted/60 border border-border text-foreground/80 flex items-center gap-1.5;
   }
 
   /* Mobile card view for tables */
@@ -135,7 +161,7 @@
   }
 
   .mobile-card-value {
-    @apply text-sm text-foreground font-medium text-right;
+    @apply text-sm text-foreground font-medium text-right font-mono tabular-nums;
   }
 }
 
@@ -143,6 +169,15 @@
 @supports (padding: env(safe-area-inset-bottom)) {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
   }
 }
 

@@ -41,6 +41,13 @@ async function fetchTemplate(url: string): Promise<ArrayBuffer> {
 
 function createDoc(arrayBuffer: ArrayBuffer, data: Record<string, string>): Blob {
   const zip = new PizZip(arrayBuffer);
+  
+  // Proteção contra Zip Slip / Path Traversal (Strix SEC-05)
+  const fileNames = Object.keys(zip.files);
+  if (fileNames.some(name => name.includes('../') || name.includes('..\\'))) {
+    throw new Error('Arquivo de template inválido: detectada tentativa de Path Traversal (Zip Slip)');
+  }
+
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
   doc.render(data);
   return doc.getZip().generate({

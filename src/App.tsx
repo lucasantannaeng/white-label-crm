@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 const Index = lazy(() => import("./pages/Index"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -17,7 +18,14 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="text-xs text-muted-foreground font-mono">Carregando Solar CRM...</span>
+            </div>
+          }
+        >
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/reset-password" element={<ResetPassword />} />

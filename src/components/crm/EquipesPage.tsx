@@ -45,7 +45,8 @@ async function callManageUsers(action: string, body: Record<string, unknown> = {
 }
 
 export default function EquipesPage() {
-  const { isMaster } = useAuth();
+  const { isMaster, isAdmin } = useAuth();
+  const canManageTecnicos = isMaster || isAdmin;
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [memberNames, setMemberNames] = useState<MemberNames>({});
   const [showForm, setShowForm] = useState(false);
@@ -58,10 +59,10 @@ export default function EquipesPage() {
   }, []);
 
   useEffect(() => {
-    if (isMaster) {
+    if (canManageTecnicos) {
       void loadTecnicos();
     }
-  }, [isMaster, equipes]);
+  }, [canManageTecnicos, equipes]);
 
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -340,14 +341,14 @@ export default function EquipesPage() {
         )}
       </div>
 
-      {isMaster && (
+      {canManageTecnicos && (
         <div className="mt-10">
           <h3 className="font-display text-xl font-bold flex items-center gap-2 mb-4">
             <Wrench className="w-5 h-5 text-primary" />
             Designação de Técnicos
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            O master define individualmente em qual equipe ativa cada técnico ficará.
+            Gestão operacional de alocação de técnicos por equipe ativa.
           </p>
 
           {tecnicos.length === 0 ? (

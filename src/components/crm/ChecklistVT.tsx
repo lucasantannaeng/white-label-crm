@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import SignaturePad from './SignaturePad';
+import { escapeHtml } from '@/lib/escapeHtml';
 
 interface ChecklistVTProps {
   clienteNome: string;
@@ -79,6 +80,54 @@ export default function ChecklistVT({ clienteNome, clienteEndereco, dataVT, agen
   const fileInputAntesRef = useRef<HTMLInputElement>(null);
   const fileInputDepoisRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (open && clienteId) {
+      loadSavedVTData();
+    }
+  }, [open, clienteId, agendamentoId]);
+
+  async function loadSavedVTData() {
+    try {
+      // Load technical data from client and inverters
+      const [{ data: clientData }, { data: invData }] = await Promise.all([
+        supabase.from('clientes').select('*').eq('id', clienteId).maybeSingle(),
+        supabase.from('inversores').select('*').eq('cliente_id', clienteId).limit(1).maybeSingle(),
+      ]);
+
+      const initialDados: Record<string, string> = {};
+      if (invData?.marca_modelo || invData?.inversor) initialDados['inversor_marca_modelo'] = invData.marca_modelo || invData.inversor || '';
+      if (invData?.numero_serie) initialDados['inversor_numero_serie'] = invData.numero_serie;
+      if (invData?.potencia_kwp) initialDados['inversor_potencia'] = String(invData.potencia_kwp);
+      if (clientData?.quantidade_placas) initialDados['modulos_quantidade'] = String(clientData.quantidade_placas);
+      if (invData?.potencia_modulo_wp) initialDados['modulos_potencia'] = String(invData.potencia_modulo_wp);
+      if (clientData?.potencia_kwp) initialDados['potencia_instalada'] = String(clientData.potencia_kwp);
+      if (clientData?.tipo_estrutura) initialDados['estrutura_tipo'] = clientData.tipo_estrutura;
+      if (clientData?.orientacao) initialDados['orientacao'] = clientData.orientacao;
+      if (clientData?.inclinacao) initialDados['inclinacao'] = String(clientData.inclinacao);
+      if (clientData?.plataforma_monitoramento) initialDados['monitoramento_plataforma'] = clientData.plataforma_monitoramento;
+      if (clientData?.login_monitoramento) initialDados['monitoramento_login'] = clientData.login_monitoramento;
+      if (clientData?.tipo_telhado) initialDados['telhado_tipo'] = clientData.tipo_telhado;
+
+      // Load existing photos from documentos_cliente
+      const query = supabase.from('documentos_cliente').select('*').eq('cliente_id', clienteId);
+      if (agendamentoId) query.eq('agendamento_id', agendamentoId);
+      const { data: docs } = await query;
+
+      const antes: string[] = [];
+      const depois: string[] = [];
+      docs?.forEach(d => {
+        if (d.tipo === 'foto_vt_antes' && d.url) antes.push(d.url);
+        if (d.tipo === 'foto_vt_depois' && d.url) depois.push(d.url);
+      });
+      if (antes.length > 0) setFotosAntes(antes);
+      if (depois.length > 0) setFotosDepois(depois);
+
+      setDados(prev => ({ ...initialDados, ...prev }));
+    } catch (e) {
+      console.error('Error loading saved VT data:', e);
+    }
+  }
+
   function toggleCheck(key: string) {
     setChecked(prev => ({ ...prev, [key]: !prev[key] }));
   }
@@ -139,18 +188,45 @@ export default function ChecklistVT({ clienteNome, clienteEndereco, dataVT, agen
         assinaturaUrl = urlData.publicUrl;
       }
 
+      // Persist full structured checklist report payload
+      const checklistPayload = {
+        clienteId,
+        clienteNome,
+        clienteEndereco,
+        dataAssinatura,
+        agendamentoId,
+        dadosColetados: dados,
+        itensVerificados: checked,
+        observacoes,
+        fotosAntes,
+        fotosDepois,
+        assinaturaUrl,
+        criadoEm: new Date().toISOString(),
+      };
+
+      const reportBlob = new Blob([JSON.stringify(checklistPayload, null, 2)], { type: 'application/json' });
+      const reportPath = `${clienteId}/vt/${agendamentoId || 'geral'}/checklist_dados_${Date.now()}.json`;
+      await supabase.storage.from('documentos-clientes').upload(reportPath, reportBlob, { contentType: 'application/json', upsert: true });
+      const { data: reportUrlData } = supabase.storage.from('documentos-clientes').getPublicUrl(reportPath);
+
       await supabase.from('documentos_cliente').insert({
         cliente_id: clienteId,
         agendamento_id: agendamentoId || null,
         tipo: 'checklist_vt_completo',
         nome: `Checklist VT - ${clienteNome} - ${dataAssinatura}`,
-        url: assinaturaUrl || '',
+        url: reportUrlData?.publicUrl || assinaturaUrl || '',
         assinatura_cliente_url: assinaturaUrl,
       });
 
       await autoFillClienteFromVT();
 
-      toast.success('Checklist V.T. salvo com sucesso!');
+      if (agendamentoId) {
+        await supabase.from('agendamentos').update({
+          assinatura_digital_url: assinaturaUrl,
+        }).eq('id', agendamentoId);
+      }
+
+      toast.success('Checklist V.T. e dados técnicos salvos com sucesso!');
       setOpen(false);
     } catch (err: any) {
       toast.error('Erro: ' + err.message);
@@ -207,15 +283,6 @@ export default function ChecklistVT({ clienteNome, clienteEndereco, dataVT, agen
     }
   }
 
-  function escapeHtml(s: string): string {
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
   function handlePrint() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -224,10 +291,10 @@ export default function ChecklistVT({ clienteNome, clienteEndereco, dataVT, agen
     ).join('');
 
     const fotosAntesHtml = fotosAntes.length > 0
-      ? `<div class="fotos-section"><h3>📷 Fotos — Antes do Serviço</h3><div class="fotos-grid">${fotosAntes.map((url, i) => `<img src="${url}" alt="Antes ${i + 1}" />`).join('')}</div></div>`
+      ? `<div class="fotos-section"><h3>📷 Fotos — Antes do Serviço</h3><div class="fotos-grid">${fotosAntes.map((url, i) => `<img src="${escapeHtml(url)}" alt="Antes ${i + 1}" />`).join('')}</div></div>`
       : '';
     const fotosDepoisHtml = fotosDepois.length > 0
-      ? `<div class="fotos-section"><h3>📷 Fotos — Depois do Serviço</h3><div class="fotos-grid">${fotosDepois.map((url, i) => `<img src="${url}" alt="Depois ${i + 1}" />`).join('')}</div></div>`
+      ? `<div class="fotos-section"><h3>📷 Fotos — Depois do Serviço</h3><div class="fotos-grid">${fotosDepois.map((url, i) => `<img src="${escapeHtml(url)}" alt="Depois ${i + 1}" />`).join('')}</div></div>`
       : '';
 
     const safeClienteNome = escapeHtml(clienteNome);
@@ -269,13 +336,24 @@ export default function ChecklistVT({ clienteNome, clienteEndereco, dataVT, agen
       ${fotosAntesHtml}
       ${fotosDepoisHtml}
       <div style="margin-top:40px;display:flex;justify-content:space-between">
-        <div style="text-align:center">${assinaturaCliente ? `<img src="${assinaturaCliente}" class="sig-img" /><br/>` : ''}<div style="border-top:1px solid #333;width:200px;padding-top:5px">Assinatura do Cliente</div></div>
+        <div style="text-align:center">${assinaturaCliente ? `<img src="${escapeHtml(assinaturaCliente)}" class="sig-img" /><br/>` : ''}<div style="border-top:1px solid #333;width:200px;padding-top:5px">Assinatura do Cliente</div></div>
       </div>
       <div class="footer"><p>Solar Service CRM - Checklist de Vistoria Técnica</p></div>
       </body></html>
     `);
     printWindow.document.close();
-    printWindow.print();
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 300);
+    };
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {}
+    }, 1500);
   }
 
   return (

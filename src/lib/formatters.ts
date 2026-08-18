@@ -55,7 +55,7 @@ const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta',
 const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
 
 function grupoExtenso(n: number): string {
-  if (n === 0) return '';
+  if (n <= 0) return '';
   if (n === 100) return 'cem';
   const c = Math.floor(n / 100);
   const r = n % 100;
@@ -63,7 +63,7 @@ function grupoExtenso(n: number): string {
   const u = r % 10;
 
   const parts: string[] = [];
-  if (c > 0) parts.push(centenas[c]);
+  if (c > 0 && c < centenas.length) parts.push(centenas[c]);
   if (r > 0 && r < 20) {
     parts.push(unidades[r]);
   } else if (r >= 20) {
@@ -75,18 +75,42 @@ function grupoExtenso(n: number): string {
 
 export function numeroExtenso(n: number): string {
   if (n === 0) return 'zero';
-  const partes: string[] = [];
-  const milhares = Math.floor(n / 1000);
-  const resto = n % 1000;
+  if (n < 0) return 'menos ' + numeroExtenso(Math.abs(n));
+
+  const bilhoes = Math.floor(n / 1_000_000_000);
+  let resto = n % 1_000_000_000;
+  const milhoes = Math.floor(resto / 1_000_000);
+  resto = resto % 1_000_000;
+  const milhares = Math.floor(resto / 1_000);
+  const unidadesResto = resto % 1_000;
+
+  const blocos: string[] = [];
+
+  if (bilhoes > 0) {
+    blocos.push(bilhoes === 1 ? 'um bilhão' : grupoExtenso(bilhoes) + ' bilhões');
+  }
+
+  if (milhoes > 0) {
+    blocos.push(milhoes === 1 ? 'um milhão' : grupoExtenso(milhoes) + ' milhões');
+  }
 
   if (milhares > 0) {
-    if (milhares === 1) partes.push('mil');
-    else partes.push(grupoExtenso(milhares) + ' mil');
+    blocos.push(milhares === 1 ? 'mil' : grupoExtenso(milhares) + ' mil');
   }
-  if (resto > 0) {
-    partes.push(grupoExtenso(resto));
+
+  if (unidadesResto > 0) {
+    blocos.push(grupoExtenso(unidadesResto));
   }
-  return partes.join(' e ');
+
+  if (blocos.length === 1) return blocos[0];
+  
+  // Concatena blocos usando ' e ' para o último se for < 100 ou centena redonda
+  if (unidadesResto > 0 && (unidadesResto <= 100 || unidadesResto % 100 === 0)) {
+    const ultimo = blocos.pop()!;
+    return blocos.join(', ') + ' e ' + ultimo;
+  }
+
+  return blocos.join(' e ');
 }
 
 export function valorExtenso(valor: number): string {
@@ -113,4 +137,19 @@ export function dataExtenso(date: Date): string {
   const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
     'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   return `${date.getDate()} de ${meses[date.getMonth()]} de ${date.getFullYear()}`;
+}
+
+export function formatWhatsAppUrl(telefone?: string | null, text?: string): string {
+  if (!telefone) return '';
+  const digits = telefone.replace(/\D/g, '');
+  if (!digits) return '';
+  let fullNum = digits;
+  // Brazilian numbers with DDD (10 or 11 digits) need DDI 55
+  if (digits.length === 10 || digits.length === 11) {
+    fullNum = `55${digits}`;
+  } else if (!digits.startsWith('55') && digits.length < 12) {
+    fullNum = `55${digits}`;
+  }
+  const base = `https://wa.me/${fullNum}`;
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }

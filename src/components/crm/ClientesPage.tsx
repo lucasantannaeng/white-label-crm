@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, X, Search, PlusCircle, MinusCircle, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Search, PlusCircle, MinusCircle, Eye, EyeOff, MessageSquare, Layers } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import MaskedInput from './MaskedInput';
-import { maskCPFCNPJ, maskPhone, maskCEP, formatCurrency } from '@/lib/formatters';
+import ClienteDrawer360 from './ClienteDrawer360';
+import { maskCPFCNPJ, maskPhone, maskCEP, formatCurrency, formatWhatsAppUrl } from '@/lib/formatters';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Cliente = Tables<'clientes'>;
@@ -65,6 +66,8 @@ export default function ClientesPage({ role }: ClientesPageProps) {
   const [search, setSearch] = useState('');
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [presetsModulos, setPresetsModulos] = useState<PresetModulo[]>([]);
+  const [selectedClienteId360, setSelectedClienteId360] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const loadClientes = useCallback(async () => {
     let result: Cliente[] = [];
@@ -233,26 +236,31 @@ export default function ClientesPage({ role }: ClientesPageProps) {
 
     // Save inversores
     if (clienteId) {
-      // Delete existing inversores for this client
-      await supabase.from('inversores').delete().eq('cliente_id', clienteId);
-      
-      // Insert all inversores
-      const inversoresData = inversores.map(inv => ({
-        cliente_id: clienteId!,
-        inversor: inv.inversor || null,
-        login_inversor: inv.login_inversor || null,
-        senha_inversor: inv.senha_inversor || null,
-        potencia_kwp: inv.potencia_kwp || null,
-        quantidade_placas: inv.quantidade_placas || 0,
-        kwh_mensal: inv.kwh_mensal || 0,
-        numero_serie: inv.numero_serie || null,
-        marca_modulos: inv.marca_modulos || null,
-        potencia_modulo_wp: inv.potencia_modulo_wp || null,
-        observacoes: inv.observacoes || null,
-      }));
-      
-      const { error: invError } = await supabase.from('inversores').insert(inversoresData as any);
-      if (invError) { toast.error('Erro ao salvar inversores: ' + invError.message); }
+      if (inversores.length === 0) {
+        await supabase.from('inversores').delete().eq('cliente_id', clienteId);
+      } else {
+        const inversoresData = inversores.map(inv => ({
+          ...(inv.id ? { id: inv.id } : {}),
+          cliente_id: clienteId!,
+          inversor: inv.inversor || null,
+          login_inversor: inv.login_inversor || null,
+          senha_inversor: inv.senha_inversor || null,
+          potencia_kwp: inv.potencia_kwp || null,
+          quantidade_placas: inv.quantidade_placas || 0,
+          kwh_mensal: inv.kwh_mensal || 0,
+          numero_serie: inv.numero_serie || null,
+          marca_modulos: inv.marca_modulos || null,
+          potencia_modulo_wp: inv.potencia_modulo_wp || null,
+          observacoes: inv.observacoes || null,
+        }));
+
+        await supabase.from('inversores').delete().eq('cliente_id', clienteId);
+        const { error: invError } = await supabase.from('inversores').insert(inversoresData as any);
+        if (invError) {
+          console.error('Error saving inverters:', invError);
+          toast.error('Erro ao salvar inversores: ' + invError.message);
+        }
+      }
     }
 
     toast.success(editingId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
@@ -532,7 +540,7 @@ export default function ClientesPage({ role }: ClientesPageProps) {
       {/* Mobile card view */}
       <div className="sm:hidden space-y-3">
         {filtered.map(c => (
-          <div key={c.id} className="mobile-card" onClick={() => handleEdit(c)}>
+          <div key={c.id} className="mobile-card cursor-pointer" onClick={() => { setSelectedClienteId360(c.id); setDrawerOpen(true); }}>
             <div className="flex items-start justify-between">
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm truncate">{c.nome}</p>
@@ -542,12 +550,27 @@ export default function ClientesPage({ role }: ClientesPageProps) {
                 {c.ativo === false && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive">Inativo</span>
                 )}
-                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(c); }}>
+                {c.telefone && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-emerald-600 hover:text-emerald-700" 
+                    title="Conversar no WhatsApp"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const url = formatWhatsAppUrl(c.telefone, `Olá ${c.nome}, tudo bem? Aqui é da equipe Solar Service.`);
+                      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" title="Editar" onClick={(e) => { e.stopPropagation(); handleEdit(c); }}>
                   <Pencil className="w-4 h-4" />
                 </Button>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
               {c.telefone && <span>{c.telefone}</span>}
               <span>{c.quantidade_placas || 0} placas</span>
               {isAdmin && <span className="text-primary font-medium">{formatCurrency(Number(c.valor_mensal) || 0)}</span>}
@@ -560,37 +583,81 @@ export default function ClientesPage({ role }: ClientesPageProps) {
       </div>
 
       {/* Desktop table view */}
-      <div className="glass-card rounded-xl overflow-hidden hidden sm:block">
+      <div className="glass-card rounded-xl overflow-hidden hidden sm:block border border-border/70">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left p-3 font-medium text-muted-foreground">Nome</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Documento</th>
-              <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Telefone</th>
-              <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Placas</th>
-              {isAdmin && <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Valor Mensal</th>}
-              <th className="text-right p-3 font-medium text-muted-foreground">Ações</th>
+            <tr className="border-b border-border/60 bg-muted/40">
+              <th className="text-left p-3 text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Nome da Usina / Cliente</th>
+              <th className="text-left p-3 text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Documento</th>
+              <th className="text-left p-3 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hidden md:table-cell">Telefone</th>
+              <th className="text-left p-3 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Placas</th>
+              {isAdmin && <th className="text-left p-3 text-[11px] font-mono uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Valor Mensal</th>}
+              <th className="text-right p-3 text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Ações</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(c => (
-              <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+              <tr key={c.id} className="border-b border-border/40 hover:bg-muted/25 transition-colors">
                 <td className="p-3 font-medium">
-                  {c.nome}
-                  {c.ativo === false && (
-                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">Inativo</span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button 
+                      onClick={() => { setSelectedClienteId360(c.id); setDrawerOpen(true); }}
+                      className="hover:text-primary hover:underline text-left font-semibold text-foreground"
+                      title="Abrir Cockpit 360° do Cliente"
+                    >
+                      {c.nome}
+                    </button>
+                    {c.ativo !== false ? (
+                      <span className="hud-badge-online">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                        </span>
+                        ATIVO
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 font-medium">
+                        INATIVO
+                      </span>
+                    )}
+                  </div>
                 </td>
-                <td className="p-3 text-muted-foreground">{c.documento}</td>
-                <td className="p-3 text-muted-foreground hidden md:table-cell">{c.telefone || '-'}</td>
-                <td className="p-3 hidden lg:table-cell">{c.quantidade_placas}</td>
-                {isAdmin && <td className="p-3 hidden lg:table-cell">{formatCurrency(Number(c.valor_mensal) || 0)}</td>}
+                <td className="p-3 font-mono text-xs text-muted-foreground">{c.documento || '—'}</td>
+                <td className="p-3 text-muted-foreground hidden md:table-cell font-mono text-xs">
+                  {c.telefone ? (
+                    <div className="flex items-center gap-1.5">
+                      <span>{c.telefone}</span>
+                      <button
+                        onClick={() => {
+                          const num = c.telefone?.replace(/\D/g, '') || '';
+                          const fullNum = num.startsWith('55') ? num : `55${num}`;
+                          window.open(`https://wa.me/${fullNum}?text=${encodeURIComponent(`Olá ${c.nome}, tudo bem? Aqui é da equipe Solar Service.`)}`, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="text-emerald-500 hover:text-emerald-400 inline-flex items-center transition-colors"
+                        title="Enviar mensagem no WhatsApp"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : '—'}
+                </td>
+                <td className="p-3 hidden lg:table-cell font-mono text-xs font-semibold text-foreground">{c.quantidade_placas || 0}</td>
+                {isAdmin && <td className="p-3 hidden lg:table-cell font-mono text-xs font-bold text-primary">{formatCurrency(Number(c.valor_mensal) || 0)}</td>}
                 <td className="p-3 text-right space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(c)}><Pencil className="w-4 h-4" /></Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    title="Abrir Cockpit 360°" 
+                    onClick={() => { setSelectedClienteId360(c.id); setDrawerOpen(true); }}
+                    className="text-primary hover:text-primary"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(c)}><Pencil className="w-4 h-4" /></Button>
                   {isAdmin && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" title="Excluir"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -615,6 +682,14 @@ export default function ClientesPage({ role }: ClientesPageProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Cockpit 360 Drawer */}
+      <ClienteDrawer360 
+        clienteId={selectedClienteId360} 
+        open={drawerOpen} 
+        onOpenChange={setDrawerOpen} 
+        isAdmin={isAdmin} 
+      />
     </div>
   );
 }

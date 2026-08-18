@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Eye, Trash2, Printer, Search, FileText, Filter } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
+import { escapeHtml } from '@/lib/escapeHtml';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Documento {
@@ -42,9 +43,24 @@ export default function DocumentosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
   const [previewDoc, setPreviewDoc] = useState<Documento | null>(null);
+  const [previewJsonData, setPreviewJsonData] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => { loadDocumentos(); }, []);
+
+  useEffect(() => {
+    if (previewDoc && (previewDoc.tipo === 'checklist_vt_completo' || previewDoc.url?.endsWith('.json'))) {
+      fetch(previewDoc.url)
+        .then(res => res.json())
+        .then(data => setPreviewJsonData(data))
+        .catch(err => {
+          console.error('Error fetching preview JSON:', err);
+          setPreviewJsonData(null);
+        });
+    } else {
+      setPreviewJsonData(null);
+    }
+  }, [previewDoc]);
 
   async function loadDocumentos() {
     setLoading(true);
@@ -68,24 +84,44 @@ export default function DocumentosPage() {
     setDeleteConfirm(null);
   }
 
-  function escapeHtml(s: string): string {
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function handlePrint(doc: Documento) {
+  async function handlePrint(doc: Documento) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
     const isImage = doc.url?.match(/\.(jpg|jpeg|png|gif|webp)/i);
+    const isJsonVT = doc.tipo === 'checklist_vt_completo' || doc.url?.endsWith('.json');
     const nome = escapeHtml(doc.nome);
     const clienteNome = escapeHtml(doc.cliente_nome || '');
     const tipo = escapeHtml(TIPO_LABELS[doc.tipo] || doc.tipo);
     const data = escapeHtml(formatDate(doc.created_at.split('T')[0]));
+
+    let extraHtml = '';
+    if (isJsonVT && doc.url) {
+      try {
+        const res = await fetch(doc.url);
+        const vtJson = await res.json();
+        if (vtJson) {
+          const dadosList = Object.entries(vtJson.dados || {})
+            .map(([k, v]) => `<div style="padding:4px 0;border-bottom:1px dotted #eee"><strong>${escapeHtml(k)}:</strong> <span>${escapeHtml(String(v))}</span></div>`)
+            .join('');
+          const fotosAntes = ((vtJson.fotos_antes as string[]) || [])
+            .map((u: string) => `<img src="${escapeHtml(u)}" style="width:170px;height:130px;object-fit:cover;border-radius:6px;border:1px solid #ddd" />`)
+            .join('');
+          const fotosDepois = ((vtJson.fotos_depois as string[]) || [])
+            .map((u: string) => `<img src="${escapeHtml(u)}" style="width:170px;height:130px;object-fit:cover;border-radius:6px;border:1px solid #ddd" />`)
+            .join('');
+
+          extraHtml = `
+            ${dadosList ? `<div style="margin:20px 0;padding:15px;background:#f9fafb;border-radius:8px"><h3 style="color:#f97316;margin:0 0 10px;font-size:14px">Dados Coletados</h3>${dadosList}</div>` : ''}
+            ${fotosAntes ? `<div style="margin:20px 0"><h3 style="color:#f97316;font-size:14px;border-bottom:1px solid #eee;padding-bottom:5px">📷 Fotos — Antes do Serviço</h3><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px">${fotosAntes}</div></div>` : ''}
+            ${fotosDepois ? `<div style="margin:20px 0"><h3 style="color:#f97316;font-size:14px;border-bottom:1px solid #eee;padding-bottom:5px">📷 Fotos — Depois do Serviço</h3><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px">${fotosDepois}</div></div>` : ''}
+            ${vtJson.observacoes ? `<div style="margin:20px 0;padding:15px;background:#f9fafb;border-radius:8px"><h3 style="color:#f97316;font-size:14px;margin:0 0 5px">Observações</h3><p style="margin:0">${escapeHtml(vtJson.observacoes)}</p></div>` : ''}
+          `;
+        }
+      } catch (err) {
+        console.error('Error parsing VT json report for print:', err);
+      }
+    }
 
     printWindow.document.write(`
       <!DOCTYPE html><html><head><meta charset="utf-8"><title>${nome}</title>
@@ -106,13 +142,25 @@ export default function DocumentosPage() {
         <p><strong>Tipo:</strong> ${tipo}</p>
         <p><strong>Data:</strong> ${data}</p>
       </div>
-      ${isImage ? `<img src="${encodeURI(doc.url)}" class="doc-img" />` : ''}
-      ${doc.assinatura_cliente_url ? `<div class="sig-section"><p><strong>Assinatura do Cliente:</strong></p><img src="${encodeURI(doc.assinatura_cliente_url)}" class="sig-img" /></div>` : ''}
-      ${doc.assinatura_tecnico_url ? `<div class="sig-section"><p><strong>Assinatura do Técnico:</strong></p><img src="${encodeURI(doc.assinatura_tecnico_url)}" class="sig-img" /></div>` : ''}
+      ${isImage ? `<img src="${escapeHtml(doc.url)}" class="doc-img" />` : ''}
+      ${extraHtml}
+      ${doc.assinatura_cliente_url ? `<div class="sig-section"><p><strong>Assinatura do Cliente:</strong></p><img src="${escapeHtml(doc.assinatura_cliente_url)}" class="sig-img" /></div>` : ''}
+      ${doc.assinatura_tecnico_url ? `<div class="sig-section"><p><strong>Assinatura do Técnico:</strong></p><img src="${escapeHtml(doc.assinatura_tecnico_url)}" class="sig-img" /></div>` : ''}
       </body></html>
     `);
     printWindow.document.close();
-    printWindow.print();
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 300);
+    };
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {}
+    }, 1500);
   }
 
   const filtered = documentos.filter(d => {
@@ -279,7 +327,42 @@ export default function DocumentosPage() {
               {previewDoc.url && previewDoc.url.match(/\.(jpg|jpeg|png|gif|webp)/i) && (
                 <img src={previewDoc.url} alt={previewDoc.nome} className="w-full rounded-lg border" />
               )}
-              {previewDoc.url && !previewDoc.url.match(/\.(jpg|jpeg|png|gif|webp)/i) && previewDoc.url !== '' && (
+              {previewJsonData && (
+                <div className="space-y-3 p-3 bg-muted/40 rounded-lg border text-xs">
+                  <h4 className="font-semibold text-primary">Laudo da Vistoria Técnica</h4>
+                  {previewJsonData.dados && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(previewJsonData.dados).map(([k, v]) => (
+                        <div key={k} className="p-1.5 rounded bg-background border">
+                          <span className="font-medium text-muted-foreground block text-[10px] uppercase">{k}</span>
+                          <span className="font-mono">{String(v || '-')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {previewJsonData.fotos_antes?.length > 0 && (
+                    <div>
+                      <span className="font-medium text-muted-foreground block mb-1">Fotos (Antes):</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {previewJsonData.fotos_antes.map((url: string, idx: number) => (
+                          <img key={idx} src={url} alt={`Antes ${idx + 1}`} className="w-full h-24 object-cover rounded border" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {previewJsonData.fotos_depois?.length > 0 && (
+                    <div>
+                      <span className="font-medium text-muted-foreground block mb-1">Fotos (Depois):</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {previewJsonData.fotos_depois.map((url: string, idx: number) => (
+                          <img key={idx} src={url} alt={`Depois ${idx + 1}`} className="w-full h-24 object-cover rounded border" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {previewDoc.url && !previewDoc.url.match(/\.(jpg|jpeg|png|gif|webp)/i) && !previewJsonData && previewDoc.url !== '' && (
                 <a href={previewDoc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">Abrir documento</a>
               )}
               {previewDoc.assinatura_cliente_url && (

@@ -89,10 +89,11 @@ export default function CalculadoraPage() {
     setResultado(data as number);
   }
 
+  const safeDescontoValor = Math.max(0, Number(descontoValor) || 0);
   const descontoCalculado = resultado !== null
     ? descontoTipo === 'percentual'
-      ? resultado * (descontoValor / 100)
-      : descontoValor
+      ? resultado * (Math.min(100, safeDescontoValor) / 100)
+      : Math.min(resultado, safeDescontoValor)
     : 0;
   const resultadoComDesconto = resultado !== null ? Math.max(0, resultado - descontoCalculado) : null;
   const valorMedio = resultadoComDesconto !== null && modulos > 0 ? resultadoComDesconto / modulos : 0;
@@ -103,9 +104,42 @@ export default function CalculadoraPage() {
     if (resultadoComDesconto === null) return;
     const descontoInfo = descontoValor > 0 ? ` (Desconto: ${descontoTipo === 'percentual' ? `${descontoValor}%` : formatCurrency(descontoValor)})` : '';
     const obs = `Limpeza de ${modulos} módulos - ${formatCurrency(resultadoComDesconto)}${descontoInfo} (${clienteMode === 'prospect' ? `Prospect: ${prospect.nome} / ${prospect.telefone}` : `Cliente: ${clienteNome}`})`;
-    if (clienteMode === 'cadastrado' && selectedClienteId) {
+    
+    let targetClienteId = selectedClienteId;
+
+    if (clienteMode === 'prospect') {
+      if (!prospect.nome.trim()) {
+        toast.error('Informe ao menos o nome do prospect para salvar.');
+        return;
+      }
+
+      const { data: newLead, error: leadErr } = await supabase.from('clientes').insert({
+        nome: prospect.nome.trim(),
+        documento: prospect.documento.trim() || `LEAD-${Date.now().toString().slice(-6)}`,
+        telefone: prospect.telefone.trim() || null,
+        rua: prospect.rua.trim() || null,
+        numero: prospect.numero.trim() || null,
+        bairro: prospect.bairro.trim() || null,
+        cidade: prospect.cidade.trim() || null,
+        uf: prospect.uf.trim() || null,
+        cep: prospect.cep.trim() || null,
+        quantidade_placas: modulos,
+        observacoes: `Lead capturado via Calculadora Comercial (${new Date().toLocaleDateString('pt-BR')})`,
+        ativo: true,
+      }).select('id').single();
+
+      if (leadErr || !newLead) {
+        toast.error('Erro ao registrar lead do prospect: ' + (leadErr?.message || 'Erro'));
+        return;
+      }
+      targetClienteId = newLead.id;
+      setSelectedClienteId(newLead.id);
+      loadData();
+    }
+
+    if (targetClienteId) {
       const { error } = await supabase.from('agendamentos').insert({
-        cliente_id: selectedClienteId,
+        cliente_id: targetClienteId,
         tipo: 'Limpeza Avulsa',
         data_agendamento: new Date().toISOString().split('T')[0],
         status: 'Aguardando Confirmação',
@@ -114,10 +148,10 @@ export default function CalculadoraPage() {
         tipo_contrato: 'limpeza',
         valor_servico: resultadoComDesconto,
       });
-      if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+      if (error) { toast.error('Erro ao salvar proposta: ' + error.message); return; }
       triggerRouteOptimizer();
     }
-    toast.success('Orçamento registrado!');
+    toast.success('Orçamento e Lead registrados com sucesso!');
   }
 
   async function gerarOrcamentoPDF() {

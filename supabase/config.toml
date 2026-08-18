@@ -1,4 +1,4 @@
-project_id = "qepfowhccyuccuodjdky"
+project_id = "your-supabase-project-id"
 
 [functions.ai-weather-alert]
 verify_jwt = false

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
+import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { CloudRain, Sun, CalendarDays, Loader2, ArrowRight } from 'lucide-react';
@@ -63,9 +63,39 @@ function findNextAvailableDay(allAg: Agendamento[], startDate: string, ag: Agend
   return fallback.toISOString().split('T')[0];
 }
 
-export default function WeatherPopup({ isAdmin }: { isAdmin: boolean }) {
+const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
+  'cabo frio': { lat: -22.88, lon: -42.02 },
+  'arraial do cabo': { lat: -22.96, lon: -42.02 },
+  'buzios': { lat: -22.74, lon: -41.88 },
+  'armacao dos buzios': { lat: -22.74, lon: -41.88 },
+  'sao pedro da aldeia': { lat: -22.84, lon: -42.10 },
+  'macae': { lat: -22.37, lon: -41.78 },
+  'rio de janeiro': { lat: -22.90, lon: -43.17 },
+  'niteroi': { lat: -22.88, lon: -43.10 },
+  'marica': { lat: -22.91, lon: -42.81 },
+  'saquarema': { lat: -22.92, lon: -42.51 },
+  'araruama': { lat: -22.87, lon: -42.34 },
+  'iguaba grande': { lat: -22.84, lon: -42.22 },
+};
+
+function getCoordsForCity(cidade?: string): { lat: number; lon: number } {
+  if (!cidade) return { lat: -22.88, lon: -42.02 };
+  const normalized = cidade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  for (const [key, coords] of Object.entries(CITY_COORDS)) {
+    if (normalized.includes(key)) return coords;
+  }
+  return { lat: -22.88, lon: -42.02 };
+}
+
+interface WeatherPopupProps {
+  isAdmin?: boolean;
+}
+
+export default function WeatherPopup({ isAdmin: propIsAdmin }: WeatherPopupProps = {}) {
+  const { isAdmin: authIsAdmin } = useAuth();
+  const isAdmin = propIsAdmin ?? authIsAdmin;
   const [open, setOpen] = useState(false);
-  const [probability, setProbability] = useState(0);
+  const [probability, setProbability] = useState<number | null>(null);
   const [todayAgendamentos, setTodayAgendamentos] = useState<Agendamento[]>([]);
   const [allAgendamentos, setAllAgendamentos] = useState<Agendamento[]>([]);
   const [suggestions, setSuggestions] = useState<Record<string, string>>({});
@@ -83,21 +113,15 @@ export default function WeatherPopup({ isAdmin }: { isAdmin: boolean }) {
 
   async function checkWeatherToday() {
     try {
-      const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-22.88&longitude=-42.02&daily=precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=1');
-      const data = await res.json();
-      const prob = data?.daily?.precipitation_probability_max?.[0] || 0;
-      setProbability(prob);
-
-      if (prob < 75) return; // below 75% = no concern
-
       const today = new Date().toISOString().split('T')[0];
       const [{ data: ag }, { data: cl }] = await Promise.all([
         supabase.from('agendamentos').select('*').order('data_agendamento'),
-        supabase.from('clientes').select('id, nome'),
+        supabase.from('clientes').select('id, nome, cidade'),
       ]);
 
       if (!ag || !cl) return;
       const clMap = new Map(cl.map(c => [c.id, c.nome]));
+      const clCityMap = new Map(cl.map(c => [c.id, c.cidade]));
       const allMapped = ag.map((a: any) => ({ ...a, cliente_nome: clMap.get(a.cliente_id) || 'Desconhecido' }));
       setAllAgendamentos(allMapped);
 
@@ -106,6 +130,16 @@ export default function WeatherPopup({ isAdmin }: { isAdmin: boolean }) {
       );
 
       if (todayLimpezas.length === 0) return;
+
+      const firstClientCity = clCityMap.get(todayLimpezas[0].cliente_id);
+      const coords = getCoordsForCity(firstClientCity);
+
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=1`);
+      const data = await res.json();
+      const prob = data?.daily?.precipitation_probability_max?.[0] || 0;
+      setProbability(prob);
+
+      if (prob < 75) return; // below 75% = no concern
 
       setTodayAgendamentos(todayLimpezas);
 

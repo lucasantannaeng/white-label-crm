@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   CloudRain, Route, Loader2, AlertTriangle, CheckCircle, RefreshCw,
-  BotMessageSquare, Mic, MicOff, Camera, Eye, Send
+  BotMessageSquare, Mic, MicOff, Camera, Eye, Send, Volume2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -37,23 +37,24 @@ export default function AIHubPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border overflow-x-auto">
+      {/* HUD Tabs */}
+      <div className="flex gap-1.5 mb-6 p-1 rounded-xl bg-muted/60 border border-border/70 overflow-x-auto">
         {tabs.map(tab => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
-                activeTab === tab.id
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
+                isActive
+                  ? 'bg-card text-foreground font-semibold shadow-sm border border-border/80'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-card/40'
               )}
             >
-              <Icon className="w-4 h-4" />
-              {tab.label}
+              <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-primary' : 'text-muted-foreground')} />
+              <span className={isActive ? 'text-foreground' : ''}>{tab.label}</span>
             </button>
           );
         })}
@@ -143,17 +144,49 @@ function WeatherTab() {
 }
 
 /* ─── Routes Tab ───────────────────────────────────────────── */
+interface RouteAssignment {
+  agendamento_id: string;
+  equipe_id: string;
+  motivo: string;
+}
+
+interface RouteOptimizeResult {
+  success: boolean;
+  applied: number;
+  total: number;
+  usedFallback?: boolean;
+  assignments?: RouteAssignment[];
+  message?: string;
+}
+
 function RoutesTab() {
   const [loading, setLoading] = useState(false);
-  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [result, setResult] = useState<RouteOptimizeResult | null>(null);
+  const [equipesMap, setEquipesMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase.from('equipes').select('id, nome').then(({ data }) => {
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(e => { map[e.id] = e.nome; });
+        setEquipesMap(map);
+      }
+    });
+  }, []);
 
   async function optimize() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-route-optimizer', {});
       if (error) throw error;
-      setSuggestion(data.suggestion ?? 'A rota já está otimizada.');
-      toast.success('Análise de rota concluída');
+      setResult(data);
+      if (data?.applied > 0) {
+        toast.success(`Rotas otimizadas com sucesso! ${data.applied} agendamento(s) designados.`);
+      } else if (data?.message) {
+        toast.info(data.message);
+      } else {
+        toast.success('Análise de rota concluída. Todas as rotas já estão balanceadas.');
+      }
     } catch (e: any) {
       toast.error('Erro ao otimizar rota: ' + e.message);
     } finally {
@@ -168,24 +201,55 @@ function RoutesTab() {
           <div>
             <h3 className="font-semibold text-foreground mb-1">Otimização de Rotas por IA</h3>
             <p className="text-sm text-muted-foreground">
-              A IA analisa todos os agendamentos pendentes e sugere reagrupamentos de clientes por cidade para reduzir deslocamentos desnecessários.
+              A IA analisa todos os agendamentos pendentes e ativos, agrupando clientes por cidade, respeitando os limites diários de produtividade e prioridades das equipes.
             </p>
           </div>
           <Button onClick={optimize} disabled={loading} className="shrink-0">
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Route className="w-4 h-4 mr-2" />}
-            Analisar
+            {loading ? 'Otimizando...' : 'Otimizar Rotas Agora'}
           </Button>
         </div>
 
-        {suggestion && (
-          <div className="mt-5 flex gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <BotMessageSquare className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-primary mb-1">Sugestão da IA</p>
-              <div className="text-sm text-foreground prose prose-sm max-w-none">
-                <ReactMarkdown>{suggestion}</ReactMarkdown>
+        {result && (
+          <div className="mt-5 space-y-4">
+            <div className="flex items-center gap-3 p-3.5 rounded-lg bg-primary/10 border border-primary/20">
+              <BotMessageSquare className="w-5 h-5 text-primary shrink-0" />
+              <div className="flex-1 text-sm">
+                <p className="font-semibold text-foreground">
+                  {result.applied > 0 
+                    ? `Designação Concluída: ${result.applied} de ${result.total} agendamentos atualizados.` 
+                    : result.message || 'Todas as rotas já estão devidamente otimizadas.'}
+                </p>
+                {result.usedFallback && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Modo de contingência ativo: balanceamento automático round-robin por cidade aplicado.
+                  </p>
+                )}
               </div>
             </div>
+
+            {result.assignments && result.assignments.length > 0 && (
+              <div className="space-y-2 mt-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Traces de Decisão do Agente ({result.assignments.length} serviços):
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-80 overflow-y-auto pr-1">
+                  {result.assignments.map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-lg bg-muted/40 border border-border text-xs flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-medium text-foreground">
+                          Equipe: {equipesMap[item.equipe_id] || item.equipe_id.slice(0, 8)}
+                        </span>
+                        <span className="text-[10px] bg-primary/15 text-primary font-mono px-1.5 py-0.5 rounded">
+                          OS #{item.agendamento_id.slice(0, 6)}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground italic">"{item.motivo}"</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -337,11 +401,32 @@ function VoiceAssistantTab() {
 
         {/* Answer */}
         {answer && (
-          <div className="mt-5 flex gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <BotMessageSquare className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <div className="text-sm text-foreground prose prose-sm max-w-none">
-              <ReactMarkdown>{answer}</ReactMarkdown>
+          <div className="mt-5 p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+            <div className="flex gap-3">
+              <BotMessageSquare className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="text-sm text-foreground prose prose-sm max-w-none">
+                <ReactMarkdown>{answer}</ReactMarkdown>
+              </div>
             </div>
+            {'speechSynthesis' in window && (
+              <div className="flex justify-end pt-2 border-t border-border/40">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(answer.replace(/[#*_`]/g, ''));
+                    utterance.lang = 'pt-BR';
+                    utterance.rate = 1.1;
+                    window.speechSynthesis.speak(utterance);
+                  }}
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  Ouvir Resposta
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

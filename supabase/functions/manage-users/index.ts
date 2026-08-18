@@ -44,6 +44,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Apenas administradores podem gerenciar usuários" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const isCallerMaster = roles.some((r: any) => r.role === "master");
+
     const { action, ...body } = await req.json();
 
     // Helper to insert audit log
@@ -84,6 +86,12 @@ Deno.serve(async (req) => {
       if (!email || !password) {
         return new Response(JSON.stringify({ error: "Email e senha são obrigatórios" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      if (typeof password === "string" && password.length < 6) {
+        return new Response(JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (role === "master" && !isCallerMaster) {
+        return new Response(JSON.stringify({ error: "Apenas usuários Master podem conceder o perfil Master" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       const { data: newUser, error } = await adminClient.auth.admin.createUser({
         email,
@@ -109,6 +117,16 @@ Deno.serve(async (req) => {
       }
       if (user_id === callerId) {
         return new Response(JSON.stringify({ error: "Você não pode alterar seu próprio papel" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (role === "master" && !isCallerMaster) {
+        return new Response(JSON.stringify({ error: "Apenas usuários Master podem atribuir o perfil Master" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Check if target user is master
+      const { data: targetRoles } = await adminClient.from("user_roles").select("role").eq("user_id", user_id).limit(1);
+      const isTargetMaster = targetRoles?.some((r: any) => r.role === "master");
+      if (isTargetMaster && !isCallerMaster) {
+        return new Response(JSON.stringify({ error: "Apenas usuários Master podem modificar contas Master" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const { data: updated, error } = await adminClient.from("user_roles").update({ role }).eq("user_id", user_id).select();
@@ -201,6 +219,13 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
+      // Check if target user is master
+      const { data: targetRoles } = await adminClient.from("user_roles").select("role").eq("user_id", user_id).limit(1);
+      const isTargetMaster = targetRoles?.some((r: any) => r.role === "master");
+      if (isTargetMaster && !isCallerMaster) {
+        return new Response(JSON.stringify({ error: "Apenas usuários Master podem alterar senhas de contas Master" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       const { error } = await adminClient.auth.admin.updateUserById(user_id as string, { password: password as string });
       if (error) throw error;
 
@@ -216,6 +241,13 @@ Deno.serve(async (req) => {
       }
       if (user_id === callerId) {
         return new Response(JSON.stringify({ error: "Você não pode excluir sua própria conta" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Check if target user is master
+      const { data: targetRoles } = await adminClient.from("user_roles").select("role").eq("user_id", user_id).limit(1);
+      const isTargetMaster = targetRoles?.some((r: any) => r.role === "master");
+      if (isTargetMaster && !isCallerMaster) {
+        return new Response(JSON.stringify({ error: "Apenas usuários Master podem excluir contas Master" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const { error } = await adminClient.auth.admin.deleteUser(user_id);
