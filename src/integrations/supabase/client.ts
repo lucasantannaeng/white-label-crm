@@ -11,8 +11,8 @@ function getSupabaseCredentials() {
     }
   }
   return {
-    url: (import.meta.env.VITE_SUPABASE_URL || '').trim(),
-    key: (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '').trim(),
+    url: (import.meta.env.VITE_SUPABASE_URL || 'https://placeholder-crm.supabase.co').trim(),
+    key: (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-anon-key').trim(),
   };
 }
 
