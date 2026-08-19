@@ -65,4 +65,19 @@ describe('Adversarial Test Suite: Contracts, Commissions & RBAC Routing', () => 
       expect(tecnicoCanAccessAgenda).toBe(true);
     });
   });
+
+  describe('Contract Filename Sanitization (sanitizeFileName)', () => {
+    it('deve sanitizar caracteres ilegais do sistema operacional em nomes de arquivo', async () => {
+      const { sanitizeFileName } = await import('../../lib/contractUtils');
+
+      expect(sanitizeFileName('João & Silva / Cia <LTDA>')).toBe('João_&_Silva_Cia_LTDA');
+      expect(sanitizeFileName('Empresa: Teste *? "Pro" | 1')).toBe('Empresa_Teste_Pro_1');
+      expect(sanitizeFileName('   Nome   Com   Espaços   ')).toBe('Nome_Com_Espaços');
+      expect(sanitizeFileName('')).toBe('Cliente');
+      expect(sanitizeFileName(null as any)).toBe('Cliente');
+      expect(sanitizeFileName(undefined as any)).toBe('Cliente');
+    });
+  });
 });
+
+

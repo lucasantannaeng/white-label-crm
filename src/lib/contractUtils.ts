@@ -56,6 +56,11 @@ function createDoc(arrayBuffer: ArrayBuffer, data: Record<string, string>): Blob
   });
 }
 
+export function sanitizeFileName(name: string): string {
+  if (!name || typeof name !== 'string') return 'Cliente';
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim().replace(/\s+/g, '_') || 'Cliente';
+}
+
 export async function gerarContratoLimpezaDocx(data: LimpezaContractData): Promise<void> {
   const now = new Date();
   const arrayBuffer = await fetchTemplate(data.templateUrl);
@@ -77,7 +82,8 @@ export async function gerarContratoLimpezaDocx(data: LimpezaContractData): Promi
     data_extenso: dataExtenso(now),
   };
   const blob = createDoc(arrayBuffer, dados);
-  saveAs(blob, `Contrato_Limpeza_${data.cliente.nome.replace(/\s+/g, '_')}.docx`);
+  const safeName = sanitizeFileName(data.cliente.nome);
+  saveAs(blob, `Contrato_Limpeza_${safeName}.docx`);
 }
 
 export async function gerarContratoMonitoramentoDocx(data: MonitoramentoContractData): Promise<void> {
@@ -99,5 +105,7 @@ export async function gerarContratoMonitoramentoDocx(data: MonitoramentoContract
     data_extenso: dataExtenso(now),
   };
   const blob = createDoc(arrayBuffer, dados);
-  saveAs(blob, `Contrato_Monitoramento_${data.cliente.nome.replace(/\s+/g, '_')}.docx`);
+  const safeName = sanitizeFileName(data.cliente.nome);
+  saveAs(blob, `Contrato_Monitoramento_${safeName}.docx`);
 }
+

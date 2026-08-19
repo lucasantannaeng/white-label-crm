@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Sun, LogIn, UserPlus, Eye, EyeOff, ShieldCheck, Zap } from 'lucide-react';
+import { Sun, LogIn, UserPlus, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -14,36 +14,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  function logarComoMasterLocal(emailVal: string) {
-    localStorage.setItem('SOLAR_MASTER_AUTH', 'true');
-    localStorage.setItem('SOLAR_AUTH_EMAIL', emailVal);
-    localStorage.setItem('SOLAR_AUTH_NOME', emailVal === 'adm@master.com' ? 'ADM (Master)' : 'Administrador Master');
-    window.dispatchEvent(new Event('auth-state-changed'));
-    toast.success('Bem-vindo, Administrador Master!');
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     const cleanEmail = email.trim().toLowerCase();
-
-    // Special bypass for master testing
-    if (cleanEmail === 'adm@master.com' && password === '123654') {
-      try {
-        const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-        if (error) {
-          // If remote supabase not available or credentials missing, log in via Master Session
-          logarComoMasterLocal(cleanEmail);
-        } else {
-          toast.success('Login realizado com sucesso!');
-        }
-      } catch {
-        logarComoMasterLocal(cleanEmail);
-      }
-      setLoading(false);
-      return;
-    }
 
     if (mode === 'signup') {
       try {
@@ -83,10 +58,6 @@ export default function Login() {
     setEmail('adm@master.com');
     setPassword('123654');
     toast.info('Credenciais de ADM Master preenchidas! Clique em "Entrar no Sistema".');
-  }
-
-  function entrarDiretoMasterADM() {
-    logarComoMasterLocal('adm@master.com');
   }
 
   return (
@@ -165,15 +136,8 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Quick Fill & Direct Login Buttons for Test ADM */}
+          {/* Quick Fill Button */}
           <div className="mt-4 pt-4 border-t border-border/60 space-y-2">
-            <button
-              type="button"
-              onClick={entrarDiretoMasterADM}
-              className="w-full py-2 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-sm"
-            >
-              <Zap className="w-3.5 h-3.5" /> Entrar Direto como ADM Master
-            </button>
             <button
               type="button"
               onClick={preencherMasterADM}
