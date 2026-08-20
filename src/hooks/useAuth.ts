@@ -11,9 +11,11 @@ interface AuthState {
   nome: string;
 }
 
+const configuredMasterEmail = (import.meta.env.VITE_MASTER_EMAIL || 'adm@master.com').toLowerCase().trim();
 const MASTER_ADMIN_EMAILS = [
-  'lucasantannaeng@gmail.com',
+  configuredMasterEmail,
   'adm@master.com',
+  'admin@master.com',
 ];
 
 async function fetchUserDetails(userId: string, email?: string) {
@@ -37,8 +39,7 @@ async function fetchUserDetails(userId: string, email?: string) {
   const finalRole: AppRole = isMasterUser ? 'master' : (dbRole || 'viewer');
 
   let defaultName = email || '';
-  if (normalizedEmail === 'adm@master.com') defaultName = 'ADM (Master)';
-  else if (normalizedEmail === 'lucasantannaeng@gmail.com') defaultName = 'Luca Rodrigues (Master)';
+  if (isMasterUser) defaultName = 'Administrator (Master)';
 
   return {
     role: finalRole,

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 
 describe('Master Admin Auth & Permissions Verification', () => {
   const MASTER_ADMIN_EMAILS = [
-    'lucasantannaeng@gmail.com',
     'adm@master.com',
+    'admin@master.com',
   ];
 
   it('deve identificar adm@master.com como Master Admin com acesso total', () => {
@@ -20,16 +20,15 @@ describe('Master Admin Auth & Permissions Verification', () => {
     expect(isMaster).toBe(true);
   });
 
-  it('deve formatar o nome do adm@master.com como ADM (Master)', () => {
+  it('deve formatar o nome do adm@master.com como Administrator (Master)', () => {
     const email = 'adm@master.com';
     const isMasterUser = true;
     const profileNome = '';
     let defaultName = email;
-    if (email === 'adm@master.com') defaultName = 'ADM (Master)';
-    else if (email === 'lucasantannaeng@gmail.com') defaultName = 'Luca Rodrigues (Master)';
+    if (isMasterUser) defaultName = 'Administrator (Master)';
 
     const nomeExibicao = profileNome || defaultName;
-    expect(nomeExibicao).toBe('ADM (Master)');
+    expect(nomeExibicao).toBe('Administrator (Master)');
   });
 
   it('deve liberar todas as 11 páginas operacionais e gerenciais para adm@master.com', () => {

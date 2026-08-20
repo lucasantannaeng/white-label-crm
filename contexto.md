@@ -99,7 +99,7 @@ O sistema implementa RBAC com **4 papéis** armazenados na tabela `user_roles` (
 
 | Papel | Enum | Quem | Permissões |
 |-------|------|------|------------|
-| **Master** | `master` | `monitoramentorealsolar@gmail.com` (único) | Acesso total + Configurações + Gerenciar Usuários |
+| **Master** | `master` | `admin@crm-solar.example` (configurável via env) | Acesso total + Configurações + Gerenciar Usuários |
 | **Admin** | `admin` | Gestores designados pelo Master | Acesso total EXCETO Configurações |
 | **Vendedor** | `vendedor` | Equipe comercial | Agenda, Clientes, Contratos, Calculadora, Hub IA |
 | **Técnico** | `tecnico` | Equipe de campo | Agenda, Clientes (sem credenciais), Calculadora, Contratos (assinatura), Hub IA (Voz/Visão) |
@@ -809,7 +809,7 @@ VALUES ('Solar Service', '25 95% 53%', 10);
 - [x] Presets de módulos cadastrados
 - [x] Buckets de storage configurados
 - [x] Edge Functions deployadas
-- [x] Primeiro usuário master criado (monitoramentorealsolar@gmail.com)
+- [x] Primeiro usuário master criado (admin@crm-solar.example)
 - [ ] Templates de contrato .docx uploadados
 - [ ] Configurações de marca personalizadas
 - [ ] Equipes de serviço cadastradas
