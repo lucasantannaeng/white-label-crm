@@ -1,4 +1,4 @@
-# 💼 Solar Service — Multi-Tenant White-Label CRM & Field Operations
+# 💼 Multi-Tenant White-Label CRM & Field Operations
 
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -14,7 +14,7 @@
 
 ## 🌟 Overview
 
-**Solar Service White-Label CRM** is a multi-tenant platform architected for solar energy contractors, field engineering teams, and technical service providers. It unifies lead capture, commercial proposal generation, dynamic contract signing (`.docx`/`.pdf`), schedule conflict management, route optimization, sales commission tracking, and AI-assisted edge functions.
+**White-Label CRM** is a multi-tenant platform architected for solar energy contractors, field engineering teams, and technical service providers. It unifies lead capture, commercial proposal generation, dynamic contract signing (`.docx`/`.pdf`), schedule conflict management, route optimization, sales commission tracking, and AI-assisted edge functions.
 
 ---
 
